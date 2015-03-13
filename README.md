@@ -23,8 +23,10 @@
     var amqpConn = require("exp-amqp-connection");
     amqpConn({host: "amqphost"}, {exchange: "myExchange"}, function (err, conn) {
       if (err) return console.err(err);
-      conn.subscribe("myRoutingKey", "a message");
+      conn.subscribe("myRoutingKey", function (message) {
+         console.log("Got message", message);
       });
+    });
 
 ### Reuse connection
 
@@ -41,6 +43,19 @@ The following will yield a single connection to rabbit instead of 5000:
         conn.publish("myRoutingKey", "a message");
         });
     }
+
+### Die on error
+
+In certain cases you want to crash the entire node process when there is a problem
+with the amqp connection. For example durable subscriptions have problems recovering
+in certain corner cases.
+
+    var amqpConn = require("exp-amqp-connection");
+    amqpConn({host: "amqphost"}, {dieOnError: true}, function (err, conn) {
+      if (err) return console.err(err);
+      ...
+    })
+        
 
 
 
