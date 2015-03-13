@@ -11,23 +11,23 @@ var queueOptions = {
 };
 var subscribeOptions = {};
 
-var bootstrappedConns = {};
+var savedConns = {};
 
 function connect(connectionConfig, behaviour, callback) {
-  if (behaviour.bootstrap && bootstrap(behaviour, callback)) {
+  if (behaviour.reuse && attempt_reuse(behaviour.reuse, callback)) {
     return;
   }
   return do_connect(connectionConfig, behaviour, callback);
 }
 
-function bootstrap(behaviour, callback) {
-  var bootstrappedConn = bootstrappedConns[behaviour.bootstrap];
-  if (bootstrappedConn && bootstrappedConn.api) {
-    callback(null, bootstrappedConn.api);
+function attempt_reuse(key, callback) {
+  var savedConn = savedConns[key];
+  if (savedConn && savedConn.api) {
+    callback(null, savedConn.api);
     return true;
   }
-  if (bootstrappedConn) {
-    bootstrappedConn.once("bootstrapped", function (api) {
+  if (savedConn) {
+    savedConn.once("bootstrapped", function (api) {
       callback(null, api);
     });
     return true;
@@ -36,7 +36,6 @@ function bootstrap(behaviour, callback) {
 }
 
 function do_connect(connectionConfig, behaviour, callback) {
-
   var api = {
     subscribe: subscribe,
     publish: publish
@@ -44,7 +43,7 @@ function do_connect(connectionConfig, behaviour, callback) {
 
   var exchange = null;
   var conn = amqp.createConnection(connectionConfig);
-  bootstrappedConns[behaviour.bootstrap] = conn;
+  savedConns[behaviour.reuse] = conn;
 
   conn.on("error", function (connectionError) {
     handleError(connectionError);
