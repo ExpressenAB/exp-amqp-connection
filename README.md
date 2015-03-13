@@ -8,6 +8,27 @@
 * Optionally kill process on errors
 * Reuse connection
 
+## API
+
+A single function is exported:
+
+```js
+var amqpConn = require("exp-amqp-connection");
+
+amqpConn({host: "amqphost"}, {reuse: "myKey", exchange: "myExchange"}, function (err, conn) {
+  if (err) return console.err(err);
+  ...
+});
+```
+
+The first arg is amqp connection options. See https://github.com/postwait/node-amqp#connection-options-and-url.
+
+The second arg defines various behaviour options:
+
+* dieOnError : If true, kill the node process in case of amqp errors
+* exchange : Name of exchange to use. Leave undefined for rabbit default exchange.
+* reuse: Reuse connections using the specified key
+
 ## Examples
 
 ### Publish
@@ -66,7 +87,3 @@ amqpConn({host: "amqphost"}, {dieOnError: true}, function (err, conn) {
   ...
 });
 ```
-        
-
-
-

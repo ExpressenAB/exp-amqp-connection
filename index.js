@@ -43,7 +43,10 @@ function do_connect(connectionConfig, behaviour, callback) {
 
   var exchange = null;
   var conn = amqp.createConnection(connectionConfig);
-  savedConns[behaviour.reuse] = conn;
+
+  if (behaviour.reuse) {
+    savedConns[behaviour.reuse] = conn;
+  }
 
   conn.on("error", function (connectionError) {
     handleError(connectionError);
@@ -86,6 +89,8 @@ function do_connect(connectionConfig, behaviour, callback) {
         process.exit(1);
       }, 3000);
     }
+    // TODO: this is not a good way to report errors, as this is the connection
+    // callback that should only be called once. Use eventEmitter instead?
     return callback(new Error(error));
   }
 
