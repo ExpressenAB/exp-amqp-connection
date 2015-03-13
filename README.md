@@ -1,4 +1,4 @@
-# Simple message broker library.
+# Simple amqp library
 
 ## Features
 
