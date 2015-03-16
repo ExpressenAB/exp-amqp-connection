@@ -14,13 +14,13 @@ var subscribeOptions = {};
 var savedConns = {};
 
 function connect(connectionConfig, behaviour, callback) {
-  if (behaviour.reuse && attempt_reuse(behaviour.reuse, callback)) {
+  if (behaviour.reuse && attemptReuse(behaviour.reuse, callback)) {
     return;
   }
-  return do_connect(connectionConfig, behaviour, callback);
+  return doConnect(connectionConfig, behaviour, callback);
 }
 
-function attempt_reuse(key, callback) {
+function attemptReuse(key, callback) {
   var savedConn = savedConns[key];
   if (savedConn && savedConn.api) {
     callback(null, savedConn.api);
@@ -35,10 +35,11 @@ function attempt_reuse(key, callback) {
   return false;
 }
 
-function do_connect(connectionConfig, behaviour, callback) {
+function doConnect(connectionConfig, behaviour, callback) {
   var api = {
     subscribe: subscribe,
-    publish: publish
+    publish: publish,
+    close: close
   };
 
   var exchange = null;
@@ -52,7 +53,7 @@ function do_connect(connectionConfig, behaviour, callback) {
     handleError(connectionError);
   });
   conn.once("ready", function () {
-    get_exchange(function (exch) {
+    getExchange(function (exch) {
       exchange = exch;
       conn.api = api;
       conn.emit("bootstrapped", api);
@@ -60,7 +61,7 @@ function do_connect(connectionConfig, behaviour, callback) {
     });
   });
 
-  function get_exchange(callback) {
+  function getExchange(callback) {
     var exch = conn.exchange(behaviour.exchange, exchangeOptions, function () {
       setImmediate(function () {callback(exch)});
     });
@@ -70,17 +71,23 @@ function do_connect(connectionConfig, behaviour, callback) {
     return exchange.publish(routingKey, message, {}, publishCallback);
   }
 
-  function subscribe(routingKey, queueName, handler) {
+  function subscribe(routingKey, queueName, handler, subscribeCallback) {
     conn.queue(queueName, queueOptions, function (queue) {
       queue.on("error", function (queueError) {
-        return handleError(queueError);
+        return subscribeCallback && subscribeCallback(queueError);
+      });
+      subscribeCallback && queue.on("basicConsumeOk", subscribeCallback);
+      queue.on("queueBindOk", function () {
+        queue.subscribe(subscribeOptions, function (message) {
+          return handler(message);
+        });
       });
       queue.bind(behaviour.exchange, routingKey);
-
-      queue.subscribe(subscribeOptions, function (message) {
-        return handler(message);
-      });
     });
+  }
+
+  function close(callback) {
+    conn.disconnect(callback);
   }
 
   function handleError(error) {
