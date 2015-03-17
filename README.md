@@ -28,6 +28,7 @@ The second arg defines various behaviour options:
 * dieOnError : If true, kill the node process in case of amqp errors
 * exchange : Name of exchange to use. Leave undefined for rabbit default exchange.
 * reuse: Reuse connections using the specified key
+* errorLogger: one-arg-function used for logging errors. Defaults to console.log
 
 ## Examples
 
@@ -49,7 +50,7 @@ var amqpConn = require("exp-amqp-connection");
 
 amqpConn({host: "amqpHost"}, {exchange: "myExchange"}, function (err, conn) {
   if (err) return console.err(err);
-  conn.subscribe("myRoutingKey", function (message) {
+  conn.subscribe("myRoutingKey", "myQueueName", function (message) {
     console.log("Got message", message);
   });
 });

@@ -50,7 +50,7 @@ function doConnect(connectionConfig, behaviour, callback) {
   }
 
   conn.on("error", function (connectionError) {
-    handleError(connectionError);
+    handleError(connectionError, callback, behaviour.errorLogger);
   });
   conn.once("ready", function () {
     getExchange(function (exch) {
@@ -63,12 +63,15 @@ function doConnect(connectionConfig, behaviour, callback) {
 
   function getExchange(callback) {
     var exch = conn.exchange(behaviour.exchange, exchangeOptions, function () {
-      setImmediate(function () {callback(exch)});
+      setImmediate(function () {callback(exch);});
     });
   }
 
   function publish(routingKey, message, publishCallback) {
-    return exchange.publish(routingKey, message, {}, publishCallback);
+    return exchange.publish(routingKey, message, {}, function (error) {
+      if (error) return publishCallback && publishCallback("Publish error");
+      return publishCallback && publishCallback();
+    });
   }
 
   function subscribe(routingKey, queueName, handler, subscribeCallback) {
@@ -76,7 +79,7 @@ function doConnect(connectionConfig, behaviour, callback) {
       queue.on("error", function (queueError) {
         return subscribeCallback && subscribeCallback(queueError);
       });
-      subscribeCallback && queue.on("basicConsumeOk", subscribeCallback);
+      queue.once("basicConsumeOk", function () {return subscribeCallback()});
       queue.on("queueBindOk", function () {
         queue.subscribe(subscribeOptions, function (message) {
           return handler(message);
@@ -90,15 +93,19 @@ function doConnect(connectionConfig, behaviour, callback) {
     conn.disconnect(callback);
   }
 
-  function handleError(error) {
+  function handleError(error, callback, logger) {
     if (behaviour.dieOnError) {
       setTimeout(function () {
         process.exit(1);
       }, 3000);
     }
-    // TODO: this is not a good way to report errors, as this is the connection
-    // callback that should only be called once. Use eventEmitter instead?
-    return callback(new Error(error));
+    if (!callback.hasBeenInvoked) {
+      callback(new Error(error));
+      callback.hasBeenInvoked = true;
+    }
+    if (logger) {
+      logger("Amqp error" + error);
+    }
   }
 
   return api;

@@ -3,73 +3,92 @@
 var exec = require("child_process").exec;
 var amqp = require("../index.js");
 var crypto = require("crypto");
-var should = require("chai").should();
+var assert = require("assert");
 
-var defaultBehaviour = {exchange: "e1"};
+var defaultBehaviour = {exchange: "e1", errorLogger: null};
 var defaultConnOpts = {};
 
-before(function (done) {unpause_rabbit(done);});
+before(function (done) {unpauseRabbit(done);});
 
 Feature("Connect", function () {
 
   Scenario("Ok connection", function () {
     after(disconnect);
-    When("Rabbit is running", unpause_rabbit);
+    When("Rabbit is running", unpauseRabbit);
     Then("We should bet able to connect", function (done) {
-      connect(defaultConnOpts, defaultBehaviour, ignore_errors(done));
+      connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
     });
-    And("The connection should be ok", test_connection);
+    And("The connection should be ok", testConnection);
 
   });
 
   Scenario("Bad connection", function () {
     after(disconnect);
-    When("Rabbit is not running", pause_rabbit);
+    When("Rabbit is not running", pauseRabbit);
     Then("We should get an error", function (done) {
-      connect(defaultConnOpts, defaultBehaviour, ensure_errors(done));
+      connect(defaultConnOpts, defaultBehaviour, ensureErrors(done));
     });
   });
 
   Scenario("Reconnect", function () {
     after(disconnect);
-    When("Rabbit is running", unpause_rabbit);
+    When("Rabbit is running", unpauseRabbit);
     And("We have a connection", function (done) {
-      connect(defaultConnOpts, defaultBehaviour, ignore_errors(done));
+      connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
     });
-    And("Rabbit goes down", pause_rabbit);
-    And("Rabbit comes back up", unpause_rabbit);
-    Then("The connection should be ok", test_connection);
+    And("Rabbit goes down", pauseRabbit);
+    And("Rabbit comes back up", unpauseRabbit);
+    Then("The connection should be ok", testConnection);
+  });
+
+});
+
+Feature("Pubsub", function () {
+  Scenario("Ok pubsub", function () {
+    after(disconnect);
+    When("Rabbit is running", unpauseRabbit);
+    And("We have a connection", function (done) {
+      connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
+    });
+    And("We create a subscription", function (done) {
+      connection.subscribe("testRoutingKey", "testQ", function (msg) {
+        assert.equal(msg.testData, "hello");
+      }, done);
+    });
+    Then("The message should arrive correctly when publishing", function (done) {
+      connection.publish("testRoutingKey", {testData: "hello"}, done);
+    });
   });
 });
 
 var connection;
 
-function test_connection(done) {
+function testConnection(done) {
   var randomRoutingKey = "RK" + crypto.randomBytes(6).toString("hex");
-  connection.subscribe(randomRoutingKey, randomRoutingKey, function (msg) {
+  connection.subscribe(randomRoutingKey, randomRoutingKey, function () {
     done();
   }, function () {
     connection.publish(randomRoutingKey, "someMessage");
   });
 }
 
-function ensure_errors(callback) {
+function ensureErrors(callback) {
   return function (err) {
     if (err) {
-      call_once(callback);
-    };
-  }
+      callOnce(callback);
+    }
+  };
 }
 
-function ignore_errors(callback) {
+function ignoreErrors(callback) {
   return function (err) {
     if (!err) {
-      call_once(callback);
+      callOnce(callback);
     }
-  }
+  };
 }
 
-function call_once(callback) {
+function callOnce(callback) {
   if (callback && !callback.alreadyCalled) {
     callback.alreadyCalled = true;
     callback();
@@ -77,17 +96,17 @@ function call_once(callback) {
 }
 
 function connect(opts, behaviour, callback) {
-  return connection = amqp(opts, behaviour, callback);
+  connection = amqp(opts, behaviour, callback);
 }
 
 function disconnect() {
-  connection && connection.close();
+  if (connection) connection.close();
 }
 
-function pause_rabbit(done) {
+function pauseRabbit(done) {
   exec("rabbitmqctl stop_app", done);
 }
 
-function unpause_rabbit(done) {
+function unpauseRabbit(done) {
   exec("rabbitmqctl start_app", done);
 }
