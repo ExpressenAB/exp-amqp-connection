@@ -45,6 +45,7 @@ Feature("Connect", function () {
 
 Feature("Pubsub", function () {
   Scenario("Ok pubsub", function () {
+    var message;
     after(disconnect);
     When("Rabbit is running", unpauseRabbit);
     And("We have a connection", function (done) {
@@ -52,11 +53,14 @@ Feature("Pubsub", function () {
     });
     And("We create a subscription", function (done) {
       connection.subscribe("testRoutingKey", "testQ", function (msg) {
-        assert.equal(msg.testData, "hello");
+        message = msg;
       }, done);
     });
-    Then("The message should arrive correctly when publishing", function (done) {
+    And("We publish a message", function (done) {
       connection.publish("testRoutingKey", {testData: "hello"}, done);
+    });
+    Then("It should arrive correctly", function () {
+      assert.equal(message.testData, "hello");
     });
   });
 });
