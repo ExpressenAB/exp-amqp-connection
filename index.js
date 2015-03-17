@@ -1,5 +1,7 @@
 "use strict";
 var amqp = require("amqp");
+var extend = require("./extend.js");
+var getLog = require("./getLog.js");
 
 var exchangeOptions = {
   durable: true,
@@ -12,6 +14,7 @@ var queueOptions = {
 var subscribeOptions = {};
 
 var savedConns = {};
+
 
 function connect(connectionConfig, behaviour, callback) {
   if (behaviour.reuse && attemptReuse(behaviour.reuse, callback)) {
@@ -38,9 +41,12 @@ function attemptReuse(key, callback) {
 function doConnect(connectionConfig, behaviour, callback) {
   var api = {
     subscribe: subscribe,
+    subscribeExclusive: subscribeExclusive,
     publish: publish,
     close: close
   };
+
+  var logger = getLog(behaviour.logger);
 
   var exchange = null;
   var conn = amqp.createConnection(connectionConfig);
@@ -50,7 +56,7 @@ function doConnect(connectionConfig, behaviour, callback) {
   }
 
   conn.on("error", function (connectionError) {
-    handleError(connectionError, callback, behaviour.errorLogger);
+    handleError(connectionError, callback);
   });
   conn.once("ready", function () {
     getExchange(function (exch) {
@@ -63,7 +69,9 @@ function doConnect(connectionConfig, behaviour, callback) {
 
   function getExchange(callback) {
     var exch = conn.exchange(behaviour.exchange, exchangeOptions, function () {
-      setImmediate(function () {callback(exch);});
+      setImmediate(function () {
+        callback(exch);
+      });
     });
   }
 
@@ -73,6 +81,36 @@ function doConnect(connectionConfig, behaviour, callback) {
       if (error) return actualPublishCallback("Publish error");
       return actualPublishCallback();
     });
+  }
+
+  function subscribeExclusive(routingKey, queueName, handler, subscribeCallback) {
+    var onExclusiveCallback = subscribeCallback || function () {};
+    var internalSubscribeOptions = extend(subscribeOptions, {exclusive: true});
+    var routingPatterns = Array.isArray(routingKey) ? routingKey : [routingKey];
+
+    function attemptExclusiveSubscribe(id) {
+      logger.debug("Attempting to connect to queue", id);
+      conn.queue(queueName, queueOptions, function (queue) {
+        routingPatterns.forEach(function (routingPattern) {
+          queue.bind(behaviour.exchange, routingPattern);
+        });
+        queue.on("error", function (err) {
+          if (err.code === 403) {
+            logger.info("Someone else is using the queue, we'll try again", id);
+            setTimeout(attemptExclusiveSubscribe.bind(null, ++id), 5000);
+          } else {
+            logger.error("Queue error", err.stack || err, id);
+          }
+        });
+        queue.subscribe(internalSubscribeOptions, function (message, headers, deliveryInfo, ack) {
+          handler(message, headers, deliveryInfo, ack);
+        }).addCallback(function () {
+          onExclusiveCallback();
+          logger.info("Exclusively subscribing to '" + queueName + "'. Other Ursula instances have to wait.", id);
+        });
+      });
+    }
+    attemptExclusiveSubscribe(1);
   }
 
   function subscribe(routingKey, queueName, handler, subscribeCallback) {

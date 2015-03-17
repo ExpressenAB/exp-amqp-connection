@@ -7,6 +7,7 @@ var assert = require("assert");
 
 var defaultBehaviour = {exchange: "e1", errorLogger: null};
 var defaultConnOpts = {};
+var connection;
 
 before(function (done) {unpauseRabbit(done);});
 
@@ -65,7 +66,7 @@ Feature("Pubsub", function () {
   });
 });
 
-var connection;
+
 
 function testConnection(done) {
   var randomRoutingKey = "RK" + crypto.randomBytes(6).toString("hex");
