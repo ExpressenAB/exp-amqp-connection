@@ -25,10 +25,14 @@ The first arg is amqp connection options. See https://github.com/postwait/node-a
 
 The second arg defines various behaviour options:
 
-* dieOnError : If true, kill the node process in case of amqp errors
-* exchange : Name of exchange to use. Leave undefined for rabbit default exchange.
-* reuse: Reuse connections using the specified key
-* errorLogger: one-arg-function used for logging errors. Defaults to console.log
+```javascript
+var behaviourOpts = {
+  dieOnError: "...", // If true, kill the node process in case of amqp errors
+  exchange: "...", // Name of exchange to use. Leave undefined for rabbit default exchange.
+  reuse: "...", // Reuse connections using the specified key
+  errorLogger: "..." // one-arg-function used for logging errors. Defaults to console.log
+};
+```
 
 ## Examples
 
