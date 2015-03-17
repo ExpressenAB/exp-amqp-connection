@@ -82,12 +82,10 @@ function doConnect(connectionConfig, behaviour, callback) {
         return actualSubscribeCallback(queueError);
       });
       queue.once("basicConsumeOk", function () {return actualSubscribeCallback()});
-      queue.on("queueBindOk", function () {
-        queue.subscribe(subscribeOptions, function (message) {
-          return handler(message);
-        });
-      });
       queue.bind(behaviour.exchange, routingKey);
+      queue.subscribe(subscribeOptions, function (message) {
+        return handler(message);
+      });
     });
   }
 
