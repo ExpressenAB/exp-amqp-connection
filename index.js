@@ -68,18 +68,20 @@ function doConnect(connectionConfig, behaviour, callback) {
   }
 
   function publish(routingKey, message, publishCallback) {
+    var actualPublishCallback = publishCallback || function () {};
     return exchange.publish(routingKey, message, {}, function (error) {
-      if (error) return publishCallback && publishCallback("Publish error");
-      return publishCallback && publishCallback();
+      if (error) return actualPublishCallback("Publish error");
+      return actualPublishCallback();
     });
   }
 
   function subscribe(routingKey, queueName, handler, subscribeCallback) {
+    var actualSubscribeCallback = subscribeCallback || function () {};
     conn.queue(queueName, queueOptions, function (queue) {
       queue.on("error", function (queueError) {
-        return subscribeCallback && subscribeCallback(queueError);
+        return actualSubscribeCallback(queueError);
       });
-      queue.once("basicConsumeOk", function () {return subscribeCallback()});
+      queue.once("basicConsumeOk", function () {return actualSubscribeCallback()});
       queue.on("queueBindOk", function () {
         queue.subscribe(subscribeOptions, function (message) {
           return handler(message);
