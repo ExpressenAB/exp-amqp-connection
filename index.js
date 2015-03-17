@@ -15,7 +15,6 @@ var subscribeOptions = {};
 
 var savedConns = {};
 
-
 function connect(connectionConfig, behaviour, callback) {
   if (behaviour.reuse && attemptReuse(behaviour.reuse, callback)) {
     return;
@@ -56,7 +55,7 @@ function doConnect(connectionConfig, behaviour, callback) {
   }
 
   conn.on("error", function (connectionError) {
-    handleError(connectionError, callback);
+    handleError(connectionError, callback, logger);
   });
   conn.once("ready", function () {
     getExchange(function (exch) {
@@ -142,7 +141,7 @@ function doConnect(connectionConfig, behaviour, callback) {
       callback.hasBeenInvoked = true;
     }
     if (logger) {
-      logger("Amqp error" + error);
+      logger.error("Amqp error" + error);
     }
   }
 
