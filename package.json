@@ -25,6 +25,6 @@
     "mocha-cakes": "^0.9.0"
   },
   "scripts": {
-    "test": "NODE_ENV=test mocha -t 5000"
+    "test": "NODE_ENV=test mocha -t 5000 && jshint ."
   }
 }

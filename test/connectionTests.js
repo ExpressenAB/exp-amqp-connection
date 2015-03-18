@@ -66,8 +66,6 @@ Feature("Pubsub", function () {
   });
 });
 
-
-
 function testConnection(done) {
   var randomRoutingKey = "RK" + crypto.randomBytes(6).toString("hex");
   connection.subscribe(randomRoutingKey, randomRoutingKey, function () {

@@ -87,7 +87,7 @@ function doConnect(connectionConfig, behaviour, callback) {
   }
 
   function subscribeExclusive(routingKey, queueName, handler, subscribeCallback, queueIsTakenCallback) {
-    var queueIsTakenCallback = queueIsTakenCallback || function () {};
+    queueIsTakenCallback = queueIsTakenCallback || function () {};
     var onExclusiveCallback = subscribeCallback || function () {};
     var internalSubscribeOptions = extend(subscribeOptions, {exclusive: true});
     var routingPatterns = Array.isArray(routingKey) ? routingKey : [routingKey];
@@ -124,7 +124,7 @@ function doConnect(connectionConfig, behaviour, callback) {
       queue.on("error", function (queueError) {
         return actualSubscribeCallback(queueError);
       });
-      queue.once("basicConsumeOk", function () {return actualSubscribeCallback()});
+      queue.once("basicConsumeOk", function () {return actualSubscribeCallback(); });
       queue.bind(behaviour.exchange, routingKey);
       queue.subscribe(subscribeOptions, function (message) {
         return handler(message);
