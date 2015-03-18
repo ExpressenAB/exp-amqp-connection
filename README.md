@@ -31,7 +31,25 @@ var behaviourOpts = {
   exchange: "...", // Name of exchange to use. Leave undefined for rabbit default exchange.
   reuse: "...", // Reuse connections using the specified key
   logger: "..." // one-arg-function used for logging errors. Defaults to console.log
+  exchangeOptions: "...", // Options to pass to the exchange
+  queueOptions: "...", // Options to pass to the queue
+  subscribeOptions: "...", // Options to use for subscribing
 };
+```
+
+default values for options, these will be merged with your changes.
+
+```javascript
+var defaultExchangeOptions = {
+  durable: true,
+  autoDelete: false,
+  confirm: true
+};
+var defaultQueueOptions = {
+  autoDelete: true
+};
+var defaultSubscribeOptions = {};
+
 ```
 
 ## Examples
@@ -77,7 +95,7 @@ for(var i = 0; i < 5000; i++) {
   });
 }
 ```
-    
+
 ### Die on error
 
 In certain cases you want to crash the entire node process when there is a problem
