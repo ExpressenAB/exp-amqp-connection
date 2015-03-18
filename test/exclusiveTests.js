@@ -39,7 +39,11 @@ Feature("Exclusive subscribe", function () {
     When("We try to create another exclusiveSubscription", function (done) {
       connection.subscribeExclusive("#", "myExclusiveQueue", function (msg) {
         message = msg;
-      }, done);
+      }, null, function (err) {
+        assert(err);
+        assert.equal(err.code, 403);
+        done();
+      });
     });
 
     And("We publish a message", function (done) {

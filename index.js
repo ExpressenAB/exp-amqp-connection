@@ -3,15 +3,15 @@ var amqp = require("amqp");
 var extend = require("./extend.js");
 var getLog = require("./getLog.js");
 
-var exchangeOptions = {
+var defaultExchangeOptions = {
   durable: true,
   autoDelete: false,
   confirm: true
 };
-var queueOptions = {
+var defaultQueueOptions = {
   autoDelete: true
 };
-var subscribeOptions = {};
+var defaultSubscribeOptions = {};
 
 var savedConns = {};
 
@@ -46,6 +46,10 @@ function doConnect(connectionConfig, behaviour, callback) {
   };
 
   var logger = getLog(behaviour.logger);
+
+  var exchangeOptions = extend(defaultExchangeOptions, behaviour.exchangeOptions);
+  var queueOptions = extend(defaultQueueOptions, behaviour.queueOptions);
+  var subscribeOptions = extend(defaultSubscribeOptions, behaviour.subscribeOptions);
 
   var exchange = null;
   var conn = amqp.createConnection(connectionConfig);
@@ -82,7 +86,8 @@ function doConnect(connectionConfig, behaviour, callback) {
     });
   }
 
-  function subscribeExclusive(routingKey, queueName, handler, subscribeCallback) {
+  function subscribeExclusive(routingKey, queueName, handler, subscribeCallback, queueIsTakenCallback) {
+    var queueIsTakenCallback = queueIsTakenCallback || function () {};
     var onExclusiveCallback = subscribeCallback || function () {};
     var internalSubscribeOptions = extend(subscribeOptions, {exclusive: true});
     var routingPatterns = Array.isArray(routingKey) ? routingKey : [routingKey];
@@ -96,6 +101,7 @@ function doConnect(connectionConfig, behaviour, callback) {
         queue.on("error", function (err) {
           if (err.code === 403) {
             logger.info("Someone else is using the queue, we'll try again", id);
+            queueIsTakenCallback(err, id);
             setTimeout(attemptExclusiveSubscribe.bind(null, ++id), 5000);
           } else {
             logger.error("Queue error", err.stack || err, id);
