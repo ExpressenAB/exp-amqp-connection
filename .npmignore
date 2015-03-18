@@ -1,2 +1,3 @@
 .jshintrc
 .jscs.json
+.travis.yml
