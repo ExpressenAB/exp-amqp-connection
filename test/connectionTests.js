@@ -1,21 +1,20 @@
 "use strict";
 
-var exec = require("child_process").exec;
+var request = require("request");
 var amqp = require("../index.js");
 var crypto = require("crypto");
 var assert = require("assert");
+var async = require("async");
 
-var defaultBehaviour = {exchange: "e1", errorLogger: null};
+var defaultBehaviour = {exchange: "e1", errorLogger: console.log};
 var defaultConnOpts = {};
 var connection;
-
-before(function (done) {unpauseRabbit(done);});
 
 Feature("Connect", function () {
 
   Scenario("Ok connection", function () {
     after(disconnect);
-    When("Rabbit is running", unpauseRabbit);
+    When("Trying to connect to default port");
     Then("We should bet able to connect", function (done) {
       connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
     });
@@ -25,20 +24,18 @@ Feature("Connect", function () {
 
   Scenario("Bad connection", function () {
     after(disconnect);
-    When("Rabbit is not running", pauseRabbit);
+    When("Trying to connect to bad port");
     Then("We should get an error", function (done) {
-      connect(defaultConnOpts, defaultBehaviour, ensureErrors(done));
+      connect({port: 9999}, defaultBehaviour, ensureErrors(done));
     });
   });
 
   Scenario("Reconnect", function () {
     after(disconnect);
-    When("Rabbit is running", unpauseRabbit);
     And("We have a connection", function (done) {
       connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
     });
-    And("Rabbit goes down", pauseRabbit);
-    And("Rabbit comes back up", unpauseRabbit);
+    And("And we kill all rabbit connections", killRabbitConnections);
     Then("The connection should be ok", testConnection);
   });
 
@@ -48,7 +45,6 @@ Feature("Pubsub", function () {
   Scenario("Ok pubsub", function () {
     var message;
     after(disconnect);
-    When("Rabbit is running", unpauseRabbit);
     And("We have a connection", function (done) {
       connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
     });
@@ -106,10 +102,20 @@ function disconnect() {
   if (connection) connection.close();
 }
 
-function pauseRabbit(done) {
-  exec("rabbitmqctl stop_app", done);
+function getRabbitConnections(callback) {
+  request.get("http://guest:guest@localhost:15672/api/connections",
+              function (err, resp, connections) {
+                callback(err, JSON.parse(connections));
+              });
 }
 
-function unpauseRabbit(done) {
-  exec("rabbitmqctl start_app", done);
+function killRabbitConnections(done) {
+  getRabbitConnections(function (err, connections) {
+    if (err) return done(err);
+    async.each(connections, killRabbitConnection, done);
+  });
+}
+
+function killRabbitConnection(connection, done) {
+  request.del("http://guest:guest@localhost:15672/api/connections/" + connection.name, done);
 }

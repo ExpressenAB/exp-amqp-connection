@@ -5,11 +5,14 @@
     "Mattias Norlander <mattias.norlander@gmail.com>",
     "Jens Carlén"
   ],
-  "version": "1.1.4",
-  "scripts": {},
+  "version": "1.1.5",
+  "scripts": {
+    "test": "NODE_ENV=test mocha -t 5000 && jshint ."
+  },
   "repository": "git://github.com/ExpressenAB/exp-amqp-connection.git",
   "keywords": [
-    "amqp", "simple"
+    "amqp",
+    "simple"
   ],
   "license": {
     "type": "MIT",
@@ -19,12 +22,12 @@
     "amqp": "^0.2.4"
   },
   "devDependencies": {
+    "async": "^0.9.0",
     "chai": "^2.1.1",
     "coffee-script": "^1.9.1",
+    "jshint": "^2.6.3",
     "mocha": "^2.2.1",
-    "mocha-cakes": "^0.9.0"
-  },
-  "scripts": {
-    "test": "NODE_ENV=test mocha -t 5000 && jshint ."
+    "mocha-cakes": "^0.9.0",
+    "request": "^2.53.0"
   }
 }

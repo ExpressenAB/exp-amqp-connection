@@ -1,5 +1,8 @@
 # Simple amqp library
 
+[![Build Status](https://travis-ci.org/ExpressenAB/exp-amqp-connection.svg?branch=master)]
+(https://travis-ci.org/ExpressenAB/exp-amqp-connection)
+
 ## Features
 
 * Hides underlying amqp implementation details
