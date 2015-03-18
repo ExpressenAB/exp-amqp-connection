@@ -30,7 +30,7 @@ var behaviourOpts = {
   dieOnError: "...", // If true, kill the node process in case of amqp errors
   exchange: "...", // Name of exchange to use. Leave undefined for rabbit default exchange.
   reuse: "...", // Reuse connections using the specified key
-  errorLogger: "..." // one-arg-function used for logging errors. Defaults to console.log
+  logger: "..." // one-arg-function used for logging errors. Defaults to console.log
 };
 ```
 

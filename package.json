@@ -5,7 +5,7 @@
     "Mattias Norlander <mattias.norlander@gmail.com>",
     "Jens Carlén"
   ],
-  "version": "1.1.2",
+  "version": "1.1.3",
   "scripts": {},
   "repository": "git://github.com/ExpressenAB/exp-amqp-connection.git",
   "keywords": [
