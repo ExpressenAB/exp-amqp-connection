@@ -42,6 +42,7 @@ function doConnect(connectionConfig, behaviour, callback) {
     subscribe: subscribe,
     subscribeExclusive: subscribeExclusive,
     publish: publish,
+    deleteQueue: deleteQueue,
     close: close
   };
 
@@ -151,6 +152,12 @@ function doConnect(connectionConfig, behaviour, callback) {
     }
   }
 
+  function deleteQueue(queueName) {
+    conn.queue(queueName, {noDeclare: true}, function (queue) {
+      queue.destroy();
+    });
+  }
+  
   return api;
 }
 

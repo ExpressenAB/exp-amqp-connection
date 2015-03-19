@@ -3,9 +3,10 @@
   "author": "AB Kvällstidningen Expressen",
   "contributors": [
     "Mattias Norlander <mattias.norlander@gmail.com>",
-    "Jens Carlén"
+    "Jens Carlén",
+    "Pål Edman"
   ],
-  "version": "1.1.6",
+  "version": "1.2.0",
   "scripts": {
     "test": "NODE_ENV=test mocha -t 5000 && jshint ."
   },
@@ -18,6 +19,7 @@
     "type": "MIT",
     "url": "http://github.com/ExpressenAB/exp-amqp-connection/raw/master/LICENSE"
   },
+  "main": "index.js",
   "dependencies": {
     "amqp": "^0.2.4"
   },
