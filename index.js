@@ -112,7 +112,7 @@ function doConnect(connectionConfig, behaviour, callback) {
           handler(message, headers, deliveryInfo, ack);
         }).addCallback(function () {
           onExclusiveCallback();
-          logger.info("Exclusively subscribing to '" + queueName + "'. Other Ursula instances have to wait.", id);
+          logger.info("Exclusively subscribing to '" + queueName + "'. Other instances will have to wait.", id);
         });
       });
     }
