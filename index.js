@@ -127,9 +127,7 @@ function doConnect(connectionConfig, behaviour, callback) {
       });
       queue.once("basicConsumeOk", function () {return actualSubscribeCallback(); });
       queue.bind(behaviour.exchange, routingKey);
-      queue.subscribe(subscribeOptions, function (message) {
-        return handler(message);
-      });
+      queue.subscribe(subscribeOptions, handler);
     });
   }
 
@@ -157,7 +155,7 @@ function doConnect(connectionConfig, behaviour, callback) {
       queue.destroy();
     });
   }
-  
+
   return api;
 }
 
