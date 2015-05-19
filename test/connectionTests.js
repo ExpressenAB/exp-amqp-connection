@@ -8,7 +8,7 @@ var async = require("async");
 var util = require("util");
 var extend = require("../extend");
 
-var defaultBehaviour = {exchange: "e1", errorLogger: console.log};
+var defaultBehaviour = {exchange: "e1", logger: console};
 var defaultConnOpts = {};
 var connection;
 
@@ -16,7 +16,9 @@ Feature("Connect", function () {
 
   Scenario("Ok connection", function () {
     after(disconnect);
-    When("Trying to connect to default port");
+    When("Trying to connect to default port", function () {
+      // Noopt
+    });
     Then("We should bet able to connect", function (done) {
       connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
     });
@@ -26,16 +28,17 @@ Feature("Connect", function () {
 
   Scenario("Bad connection", function () {
     after(disconnect);
-    When("Trying to connect to bad port");
+    When("Trying to connect to bad port", function () {
+    });
     Then("We should get an error", function (done) {
-      connect({port: 9999}, defaultBehaviour, ensureErrors(done));
+      connect({port: 9999}, extend(defaultBehaviour, {logger: null}), ensureErrors(done));
     });
   });
 
   Scenario("Reconnect", function () {
     after(disconnect);
     And("We have a connection", function (done) {
-      connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
+      connect(defaultConnOpts, extend(defaultBehaviour, {logger: null}), ignoreErrors(done));
     });
     And("And we kill all rabbit connections", killRabbitConnections);
     Then("The connection should be ok", testConnection);

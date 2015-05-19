@@ -61,9 +61,11 @@ function doConnect(connectionConfig, behaviour, callback) {
   }
 
   conn.on("error", function (connectionError) {
-    handleError(connectionError, callback, logger);
+    handleError(connectionError, logger);
   });
+  conn.once("error", callback);
   conn.once("ready", function () {
+    conn.removeListener("error", callback);
     getExchange(function (exch) {
       exchange = exch;
       conn.api = api;
@@ -103,7 +105,7 @@ function doConnect(connectionConfig, behaviour, callback) {
   function getQueueOptions() {
     if (behaviour.deadLetterExchangeName) {
       queueOptions["arguments"] = queueOptions["arguments"] || {};
-      queueOptions["arguments"]["x-dead-letter-exchange"]  = behaviour.deadLetterExchangeName;
+      queueOptions["arguments"]["x-dead-letter-exchange"] = behaviour.deadLetterExchangeName;
       if (!subscribeOptions.ack) {
         throw new Error("Ack needs to be enabled in subscribeOptions for dead letter exchange to work");
       }
@@ -169,16 +171,12 @@ function doConnect(connectionConfig, behaviour, callback) {
     conn.disconnect(callback);
   }
 
-  function handleError(error, callback, logger) {
+  function handleError(error, logger) {
     if (behaviour.dieOnError) {
       setTimeout(function () {
         logger.error(error);
         process.exit(1);
       }, 3000);
-    }
-    if (!callback.hasBeenInvoked) {
-      callback(new Error(error));
-      callback.hasBeenInvoked = true;
     }
     if (logger) {
       logger.error(util.format("Amqp error", error, "\n", error.stack));
