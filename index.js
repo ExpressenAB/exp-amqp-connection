@@ -74,9 +74,40 @@ function doConnect(connectionConfig, behaviour, callback) {
   function getExchange(callback) {
     var exch = conn.exchange(behaviour.exchange, exchangeOptions, function () {
       setImmediate(function () {
+        if (behaviour.deadLetterExchangeName) {
+          return setupDeadLetterExchange(behaviour.deadLetterExchangeName, function () {
+            callback(exch);
+          });
+        }
         callback(exch);
       });
     });
+  }
+
+  function setupDeadLetterExchange(deadLetterExchangeName, callback) {
+    var options = {
+      durable: true,
+      autoDelete: false,
+      type: "topic"
+    };
+    conn.exchange(deadLetterExchangeName, options, function (ex) {
+      var options = {durable: true, autoDelete: false};
+      conn.queue(deadLetterExchangeName + ".deadLetterQueue", options, function (q) {
+        q.bind(ex, "#");
+        callback();
+      });
+    });
+  }
+
+  function getQueueOptions() {
+    if (behaviour.deadLetterExchangeName) {
+      queueOptions["arguments"] = queueOptions["arguments"] || {};
+      queueOptions["arguments"]["x-dead-letter-exchange"]  = behaviour.deadLetterExchangeName;
+      if (!subscribeOptions.ack) {
+        throw new Error("Ack needs to be enabled in subscribeOptions for dead letter exchange to work");
+      }
+    }
+    return queueOptions;
   }
 
   function publish(routingKey, message, publishCallback) {
@@ -95,7 +126,7 @@ function doConnect(connectionConfig, behaviour, callback) {
 
     function attemptExclusiveSubscribe(id) {
       logger.debug("Attempting to connect to queue", id);
-      conn.queue(queueName, queueOptions, function (queue) {
+      conn.queue(queueName, getQueueOptions(), function (queue) {
         routingPatterns.forEach(function (routingPattern) {
           queue.bind(behaviour.exchange, routingPattern);
         });
@@ -116,12 +147,14 @@ function doConnect(connectionConfig, behaviour, callback) {
         });
       });
     }
+
     attemptExclusiveSubscribe(1);
   }
 
   function subscribe(routingKey, queueName, handler, subscribeCallback) {
     var actualSubscribeCallback = subscribeCallback || function () {};
-    conn.queue(queueName, queueOptions, function (queue) {
+
+    conn.queue(queueName, getQueueOptions(), function (queue) {
       queue.on("error", function (queueError) {
         return actualSubscribeCallback(queueError);
       });

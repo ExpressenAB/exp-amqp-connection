@@ -74,7 +74,7 @@ var amqpConn = require("exp-amqp-connection");
 
 amqpConn({host: "amqpHost"}, {exchange: "myExchange"}, function (err, conn) {
   if (err) return console.err(err);
-  conn.subscribe("myRoutingKey", "myQueueName", function (message) {
+  conn.subscribe("myRoutingKey", "myQueueName", function (message, headers, deliveryInfo, messageObject) {
     console.log("Got message", message);
   });
 });

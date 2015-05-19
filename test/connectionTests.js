@@ -5,6 +5,7 @@ var amqp = require("../index.js");
 var crypto = require("crypto");
 var assert = require("assert");
 var async = require("async");
+var extend = require("../extend");
 
 var defaultBehaviour = {exchange: "e1", errorLogger: console.log};
 var defaultConnOpts = {};
@@ -62,6 +63,48 @@ Feature("Pubsub", function () {
   });
 });
 
+Feature("Dead letter exchange", function () {
+  Scenario("Publishing failed messages on dead letter exchange", function () {
+    var message;
+    var deadLetterExchangeName = "e1.dead";
+    var behaviour = extend(defaultBehaviour, {
+      deadLetterExchangeName: deadLetterExchangeName,
+      subscribeOptions: {
+        ack: true
+      }
+    });
+
+    after(disconnect);
+    And("We have a connection with a dead letter exchange", function (done) {
+      connect(defaultConnOpts, behaviour, ignoreErrors(done));
+    });
+    And("We are listing to the dead letter exchange", function (done) {
+      amqp(defaultConnOpts, {exchange: deadLetterExchangeName}, function (err, conn) {
+        if (err) return done(err);
+        conn.subscribe("#", "deadQ", function (msg) {
+          message = msg;
+        }, done);
+      });
+    });
+
+    And("We reject all messages", function (done) {
+      connection.subscribe("testRoutingKey", "testQ", function (msg, headers, deliveryInfo, ack) {
+        ack.reject(false);
+      }, done);
+    });
+    When("We publish a message", function (done) {
+      connection.publish("testRoutingKey", {testData: "hello"}, done);
+    });
+    Then("The message should be in the dead letter queue", function (done) {
+      setTimeout(function () {
+        assert.equal(message.testData, "hello");
+        done();
+      }, 50);
+    });
+
+  });
+});
+
 function testConnection(done) {
   var randomRoutingKey = "RK" + crypto.randomBytes(6).toString("hex");
   connection.subscribe(randomRoutingKey, randomRoutingKey, function () {
@@ -104,9 +147,9 @@ function disconnect() {
 
 function getRabbitConnections(callback) {
   request.get("http://guest:guest@localhost:15672/api/connections",
-              function (err, resp, connections) {
-                callback(err, JSON.parse(connections));
-              });
+    function (err, resp, connections) {
+      callback(err, JSON.parse(connections));
+    });
 }
 
 function killRabbitConnections(done) {
