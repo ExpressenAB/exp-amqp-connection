@@ -5,6 +5,7 @@ var amqp = require("../index.js");
 var crypto = require("crypto");
 var assert = require("assert");
 var async = require("async");
+var util = require("util");
 var extend = require("../extend");
 
 var defaultBehaviour = {exchange: "e1", errorLogger: console.log};
@@ -74,7 +75,12 @@ Feature("Dead letter exchange", function () {
       }
     });
 
-    after(disconnect);
+    after(function (done) {
+      killDeadLetter(behaviour.deadLetterExchangeName, function () {
+        disconnect();
+        done();
+      });
+    });
     And("We have a connection with a dead letter exchange", function (done) {
       connect(defaultConnOpts, behaviour, ignoreErrors(done));
     });
@@ -156,6 +162,16 @@ function killRabbitConnections(done) {
   getRabbitConnections(function (err, connections) {
     if (err) return done(err);
     async.each(connections, killRabbitConnection, done);
+  });
+}
+
+function killDeadLetter(deadLetterExchangeName, done) {
+  var queueUrl = util.format("http://guest:guest@localhost:15672/api/queues/%2F/%s.deadLetterQueue", deadLetterExchangeName);
+  var exchangeUrl = util.format("http://guest:guest@localhost:15672/api/exchanges/%2F/%s", deadLetterExchangeName);
+
+  request.del(exchangeUrl, function (err) {
+    if (err) return done(err);
+    request.del(queueUrl, done);
   });
 }
 
