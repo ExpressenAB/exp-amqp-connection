@@ -9,6 +9,7 @@
 * Subscribe
 * Optionally kill process on errors
 * Reuse connection
+* Dead letter exchange handling
 
 ## API
 
@@ -33,9 +34,10 @@ var behaviourOpts = {
   exchange: "...", // Name of exchange to use. Leave undefined for rabbit default exchange.
   reuse: "...", // Reuse connections using the specified key
   logger: "..." // one-arg-function used for logging errors. Defaults to console.log
+  deadLetterExchangeName: "...", // Enable dead letter exchange by setting a name for it.
   exchangeOptions: "...", // Options to pass to the exchange
   queueOptions: "...", // Options to pass to the queue
-  subscribeOptions: "...", // Options to use for subscribing
+  subscribeOptions: "...", // Options to use for subscribing,
 };
 ```
 
@@ -110,5 +112,36 @@ var amqpConn = require("exp-amqp-connection");
 amqpConn({host: "amqphost"}, {dieOnError: true}, function (err, conn) {
   if (err) return console.err(err);
   ...
+});
+```
+
+### Dead letter exchange
+
+Messages from a queue can be 'dead-lettered'; that is, republished to another exchange.
+For more information: https://www.rabbitmq.com/dlx.html
+This option will create a dead letter queue with the name `deadLetterExchangeName + ".deadLetterQueue"`
+
+```js
+var amqpConn = require("exp-amqp-connection");
+
+var options = {
+  exchange: "myExchange",
+  deadLetterExchangeName: "myExchange.dead",
+  subscribeOptions: {
+    ack: true // Ack must be enabled for dead lettering to work
+  }
+}
+
+amqpConn({host: "amqpHost"}, options, function (err, conn) {
+  if (err) return console.err(err);
+  conn.subscribe("myRoutingKey", "myQueueName", function (message, headers, deliveryInfo, messageObject) {
+    if (message) {
+      messageObject.acknowledge();
+    } else {
+      messageObject.reject(false); // reject=true, requeue=false causes dead-lettering
+    }
+
+    console.log("Got message", message);
+  });
 });
 ```
