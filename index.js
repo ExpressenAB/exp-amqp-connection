@@ -1,5 +1,6 @@
 "use strict";
 var amqp = require("amqp");
+var util = require("util");
 var extend = require("./extend.js");
 var getLog = require("./getLog.js");
 
@@ -171,6 +172,7 @@ function doConnect(connectionConfig, behaviour, callback) {
   function handleError(error, callback, logger) {
     if (behaviour.dieOnError) {
       setTimeout(function () {
+        logger.error(error);
         process.exit(1);
       }, 3000);
     }
@@ -179,7 +181,7 @@ function doConnect(connectionConfig, behaviour, callback) {
       callback.hasBeenInvoked = true;
     }
     if (logger) {
-      logger.error("Amqp error" + error);
+      logger.error(util.format("Amqp error", error, "\n", error.stack));
     }
   }
 
