@@ -1,5 +1,6 @@
 {
   "name": "exp-amqp-connection",
+  "description": "Wrapper for amqp lib that adds some nice features",
   "author": "AB Kvällstidningen Expressen",
   "contributors": [
     "Mattias Norlander <mattias.norlander@gmail.com>",
