@@ -38,10 +38,13 @@ var behaviourOpts = {
   exchangeOptions: "...", // Options to pass to the exchange
   queueOptions: "...", // Options to pass to the queue
   subscribeOptions: "...", // Options to use for subscribing,
+  consumerCancelNotification: "..." // If true, enable rabbit consumner cancel notifications. Causes exit of dieOnError is set, otherwise the notification will just be logged
 };
 ```
 
-default values for options, these will be merged with your changes.
+More info om consumer cancel notifications here: http://www.rabbitmq.com/consumer-cancel.html
+
+Default values for options, these will be merged with your changes:
 
 ```javascript
 var defaultExchangeOptions = {
@@ -71,10 +74,13 @@ amqpConn({host: "amqpHost"}, {exchange: "myExchange"}, function (err, conn) {
 
 ### Subscribe
 
+NOTE: it is highly recommended to enable both ``dieOnError`` as well as ``consumerCancelNotification`` when subscribing
+to ensure a restart/reconnect in all scenarios where the subscription fails.
+
 ```js
 var amqpConn = require("exp-amqp-connection");
-
-amqpConn({host: "amqpHost"}, {exchange: "myExchange"}, function (err, conn) {
+var behaviour = {exchange: "myExchange", dieOnError: true, consumerCancelNotification: true};
+amqpConn({host: "amqpHost"}, behaviour, function (err, conn) {
   if (err) return console.err(err);
   conn.subscribe("myRoutingKey", "myQueueName", function (message, headers, deliveryInfo, messageObject) {
     console.log("Got message", message);

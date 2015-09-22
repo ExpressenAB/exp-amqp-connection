@@ -54,6 +54,9 @@ function doConnect(connectionConfig, behaviour, callback) {
   var subscribeOptions = extend(defaultSubscribeOptions, behaviour.subscribeOptions);
 
   var exchange = null;
+  connectionConfig.clientProperties =
+    {"capabilities": {"consumer_cancel_notify": !!behaviour.consumerCancelNotification}};
+
   var conn = amqp.createConnection(connectionConfig);
 
   if (behaviour.reuse) {
@@ -133,6 +136,9 @@ function doConnect(connectionConfig, behaviour, callback) {
         routingPatterns.forEach(function (routingPattern) {
           queue.bind(behaviour.exchange, routingPattern);
         });
+        queue.on("basicCancel", function () {
+          handleError("Subscription cancelled from server side", onExclusiveCallback, logger);
+        });
         queue.on("error", function (err) {
           if (err.code === 403) {
             logger.info("Someone else is using the queue, we'll try again", id);
@@ -162,6 +168,9 @@ function doConnect(connectionConfig, behaviour, callback) {
         return actualSubscribeCallback(queueError);
       });
       queue.once("basicConsumeOk", function () {return actualSubscribeCallback(); });
+      queue.on("basicCancel", function () {
+        handleError("Subscription cancelled from server side", actualSubscribeCallback, logger);
+      });
       queue.bind(behaviour.exchange, routingKey);
       queue.subscribe(subscribeOptions, handler);
     });
