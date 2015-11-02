@@ -156,7 +156,7 @@ function doConnect(connectionConfig, behaviour, callback) {
           queue.bind(behaviour.exchange, routingPattern);
         });
         queue.on("basicCancel", function () {
-          handleError("Subscription cancelled from server side", onExclusiveCallback, logger);
+          handleError("Subscription cancelled from server side", logger);
         });
         queue.on("error", function (err) {
           if (err.code === 403) {
