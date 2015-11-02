@@ -57,16 +57,35 @@ function doConnect(connectionConfig, behaviour, callback) {
   connectionConfig.clientProperties =
     {"capabilities": {"consumer_cancel_notify": !!behaviour.consumerCancelNotification}};
 
-  var conn = amqp.createConnection(connectionConfig);
+  var conn = amqp.createConnection(connectionConfig, {reconnect: !behaviour.dieOnError});
 
   if (behaviour.reuse) {
     savedConns[behaviour.reuse] = conn;
   }
 
+  // Connection that is closed without errors should trigger whatever reconnect functionality we
+  // have in place. The underlying amqp lib does not consider this a case for reconnects, so we have
+  // to deal with this manually. This covers the case when the amqp server is restarted.
+  conn.on("close", function (hadError) {
+    // If an error caused the close, we do nothing. Normal error handling should work fine.
+    if (!hadError) {
+      // This will kill the process if dieOnError is set
+      handleError("Connection closed without errors");
+      // Otherwise we re-inititate the connection
+      if (!behaviour.dieOnError) {
+        setImmediate(function () {
+          doConnect(connectionConfig, behaviour, callback);
+        });
+      }
+    }
+  });
+
   conn.on("error", function (connectionError) {
     handleError(connectionError, logger);
   });
+
   conn.once("error", callback);
+
   conn.once("ready", function () {
     conn.removeListener("error", callback);
     getExchange(function (exch) {
