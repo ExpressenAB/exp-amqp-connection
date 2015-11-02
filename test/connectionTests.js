@@ -8,7 +8,7 @@ var async = require("async");
 var util = require("util");
 var extend = require("../extend");
 
-var defaultBehaviour = {exchange: "e1", logger: console};
+var defaultBehaviour = {exchange: "e1", logger: console, consumerCancelNotification: true};
 var defaultConnOpts = {};
 var connection;
 
@@ -58,6 +58,29 @@ Feature("Pubsub", function () {
         message = msg;
       }, done);
     });
+    And("We publish a message", function (done) {
+      connection.publish("testRoutingKey", {testData: "hello"}, done);
+    });
+    Then("It should arrive correctly", function () {
+      assert.equal(message.testData, "hello");
+    });
+  });
+
+  Scenario("Cancelled sub", function () {
+    var message;
+    after(disconnect);
+    And("We have a connection", function (done) {
+      connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
+    });
+    And("We create a subscription", function (done) {
+      connection.subscribe("testRoutingKey", "testQ", function (msg) {
+        message = msg;
+      }, done);
+    });
+    And("We delete the queue", function (done) {
+      deleteRabbitQueue("testQ", done);
+    });
+    And("We wait a little", function (done) {setTimeout(done, 1000);});
     And("We publish a message", function (done) {
       connection.publish("testRoutingKey", {testData: "hello"}, done);
     });
@@ -161,13 +184,6 @@ function getRabbitConnections(callback) {
     });
 }
 
-function killRabbitConnections(done) {
-  getRabbitConnections(function (err, connections) {
-    if (err) return done(err);
-    async.each(connections, killRabbitConnection, done);
-  });
-}
-
 function killDeadLetter(deadLetterExchangeName, done) {
   var queueUrl = util.format("http://guest:guest@localhost:15672/api/queues/%2F/%s.deadLetterQueue", deadLetterExchangeName);
   var exchangeUrl = util.format("http://guest:guest@localhost:15672/api/exchanges/%2F/%s", deadLetterExchangeName);
@@ -178,6 +194,17 @@ function killDeadLetter(deadLetterExchangeName, done) {
   });
 }
 
+function killRabbitConnections(done) {
+  getRabbitConnections(function (err, connections) {
+    if (err) return done(err);
+    async.each(connections, killRabbitConnection, done);
+  });
+}
+
 function killRabbitConnection(connection, done) {
   request.del("http://guest:guest@localhost:15672/api/connections/" + connection.name, done);
+}
+
+function deleteRabbitQueue(queue, done) {
+  request.del("http://guest:guest@localhost:15672/api/queues/%2F/" + queue, done);
 }
