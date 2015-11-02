@@ -195,6 +195,8 @@ function doConnect(connectionConfig, behaviour, callback) {
     });
   }
 
+  // This undocumented function is a bit weird since we have reconnect on all
+  // "closed" events. It is use for testing and might be removed in the future
   function close(callback) {
     conn.disconnect(callback);
   }
