@@ -188,7 +188,7 @@ function doConnect(connectionConfig, behaviour, callback) {
       });
       queue.once("basicConsumeOk", function () {return actualSubscribeCallback(); });
       queue.on("basicCancel", function () {
-        handleError("Subscription cancelled from server side", actualSubscribeCallback, logger);
+        handleError("Subscription cancelled from server side", logger, true);
       });
       queue.bind(behaviour.exchange, routingKey);
       queue.subscribe(subscribeOptions, handler);
@@ -199,12 +199,14 @@ function doConnect(connectionConfig, behaviour, callback) {
     conn.disconnect(callback);
   }
 
-  function handleError(error, logger) {
+  function handleError(error, logger, reconnect) {
     if (behaviour.dieOnError) {
       setTimeout(function () {
         logger.error(error);
         process.exit(1);
       }, 3000);
+    } else if (reconnect) {
+      conn.socket.destroy();
     }
     if (logger) {
       logger.error(util.format("Amqp error", error, "\n", error.stack));
