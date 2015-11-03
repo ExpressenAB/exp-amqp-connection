@@ -54,6 +54,7 @@ function doConnect(connectionConfig, behaviour, callback) {
   var exchange = null;
   connectionConfig.clientProperties =
     {"capabilities": {"consumer_cancel_notify": !!behaviour.consumerCancelNotification}};
+  connectionConfig.heartbeat = 10;
   var conn = amqp.createConnection(connectionConfig, {reconnect: !behaviour.dieOnError});
   var explicitClose = false;
 
@@ -65,18 +66,7 @@ function doConnect(connectionConfig, behaviour, callback) {
   // have in place. The underlying amqp lib does not consider this a case for reconnects, so we have
   // to deal with this manually. This covers the case when the amqp server is restarted.
   conn.on("close", function (hadError) {
-    // If an error caused the close, we do nothing. Normal error handling should work fine.
-    // Also don't reconnect if we explictly have closed the connection via the "close" function
-    if (!hadError && !explicitClose) {
-      // This will kill the process if dieOnError is set
-      handleError("Connection closed without errors");
-      // Otherwise we re-inititate the connection
-      if (!behaviour.dieOnError) {
-        setImmediate(function () {
-          doConnect(connectionConfig, behaviour, callback);
-        });
-      }
-    }
+    logger.info("Connectoion closed", hadError);
   });
 
   conn.on("error", function (connectionError) {
@@ -204,16 +194,15 @@ function doConnect(connectionConfig, behaviour, callback) {
 
   function handleError(error, logger, reconnect) {
     if (behaviour.dieOnError) {
+      logger.error("Killing myself over error: ", error);
       setTimeout(function () {
-        logger.error(error);
         process.exit(1);
       }, 3000);
     } else if (reconnect) {
+      logger.info("Destroying connection forcing reconnect due to error:", error);
       conn.socket.destroy();
     }
-    if (logger) {
-      logger.error(util.format("Amqp error", error, "\n", error.stack));
-    }
+    logger.error(util.format("Amqp error", error, "\n", error.stack || ""));
   }
 
   function deleteQueue(queueName) {
