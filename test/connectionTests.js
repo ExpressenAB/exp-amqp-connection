@@ -184,6 +184,13 @@ function getRabbitConnections(callback) {
     });
 }
 
+function killRabbitConnections(done) {
+  getRabbitConnections(function (err, connections) {
+    if (err) return done(err);
+    async.each(connections, killRabbitConnection, done);
+  });
+}
+
 function killDeadLetter(deadLetterExchangeName, done) {
   var queueUrl = util.format("http://guest:guest@localhost:15672/api/queues/%2F/%s.deadLetterQueue", deadLetterExchangeName);
   var exchangeUrl = util.format("http://guest:guest@localhost:15672/api/exchanges/%2F/%s", deadLetterExchangeName);
@@ -191,13 +198,6 @@ function killDeadLetter(deadLetterExchangeName, done) {
   request.del(exchangeUrl, function (err) {
     if (err) return done(err);
     request.del(queueUrl, done);
-  });
-}
-
-function killRabbitConnections(done) {
-  getRabbitConnections(function (err, connections) {
-    if (err) return done(err);
-    async.each(connections, killRabbitConnection, done);
   });
 }
 
