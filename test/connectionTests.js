@@ -54,7 +54,7 @@ Feature("Pubsub", function () {
       connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
     });
     And("We create a subscription", function (done) {
-      connection.subscribe("testRoutingKey", "testQ", function (msg) {
+      connection.subscribe("testRoutingKey", "testQ1", function (msg) {
         message = msg;
       }, done);
     });
@@ -73,12 +73,12 @@ Feature("Pubsub", function () {
       connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
     });
     And("We create a subscription", function (done) {
-      connection.subscribe("testRoutingKey", "testQ", function (msg) {
+      connection.subscribe("testRoutingKey", "testQ2", function (msg) {
         message = msg;
       }, done);
     });
     And("We delete the queue", function (done) {
-      deleteRabbitQueue("testQ", done);
+      deleteRabbitQueue("testQ2", done);
     });
     And("We wait a little", function (done) {setTimeout(done, 3000);});
     And("We publish a message", function (done) {
@@ -120,7 +120,7 @@ Feature("Dead letter exchange", function () {
     });
 
     And("We reject all messages", function (done) {
-      connection.subscribe("testRoutingKey", "testQ", function (msg, headers, deliveryInfo, ack) {
+      connection.subscribe("testRoutingKey", "TestQ3", function (msg, headers, deliveryInfo, ack) {
         ack.reject(false);
       }, done);
     });
