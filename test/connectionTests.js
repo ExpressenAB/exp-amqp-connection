@@ -8,7 +8,7 @@ var async = require("async");
 var util = require("util");
 var extend = require("../extend");
 
-var defaultBehaviour = {exchange: "e1", logger: console, consumerCancelNotification: true, queueOptions: {exclusive: true}};
+var defaultBehaviour = {exchange: "e1", logger: console, consumerCancelNotification: true};
 var defaultConnOpts = {};
 var connection;
 
@@ -195,16 +195,24 @@ function killDeadLetter(deadLetterExchangeName, done) {
   var queueUrl = util.format("http://guest:guest@localhost:15672/api/queues/%2F/%s.deadLetterQueue", deadLetterExchangeName);
   var exchangeUrl = util.format("http://guest:guest@localhost:15672/api/exchanges/%2F/%s", deadLetterExchangeName);
 
-  request.del(exchangeUrl, function (err) {
+  deleteResource(exchangeUrl, function (err) {
     if (err) return done(err);
-    request.del(queueUrl, done);
+    deleteResource(queueUrl, done);
   });
 }
 
 function killRabbitConnection(connection, done) {
-  request.del("http://guest:guest@localhost:15672/api/connections/" + connection.name, done);
+  deleteResource("http://guest:guest@localhost:15672/api/connections/" + connection.name, done);
 }
 
 function deleteRabbitQueue(queue, done) {
-  request.del("http://guest:guest@localhost:15672/api/queues/%2F/" + queue, done);
+  deleteResource("http://guest:guest@localhost:15672/api/queues/%2F/" + queue, done);
+}
+
+function deleteResource(url, done) {
+  request.del(url, function (err, resp, body) {
+    if (err) return done(err);
+    if (resp.statusCode >= 300) return done(resp.statusCode + " " + body);
+    done();
+  });
 }
