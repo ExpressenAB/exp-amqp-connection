@@ -48,25 +48,43 @@ function doConnect(connectionConfig, behaviour, callback) {
   };
 
   var logger = getLog(behaviour.logger);
-
   var exchangeOptions = extend(defaultExchangeOptions, behaviour.exchangeOptions);
   var queueOptions = extend(defaultQueueOptions, behaviour.queueOptions);
   var subscribeOptions = extend(defaultSubscribeOptions, behaviour.subscribeOptions);
-
   var exchange = null;
   connectionConfig.clientProperties =
     {"capabilities": {"consumer_cancel_notify": !!behaviour.consumerCancelNotification}};
-
-  var conn = amqp.createConnection(connectionConfig);
+  var conn = amqp.createConnection(connectionConfig, {reconnect: !behaviour.dieOnError});
+  var explicitClose = false;
 
   if (behaviour.reuse) {
     savedConns[behaviour.reuse] = conn;
   }
 
+  // Connection that is closed without errors should trigger whatever reconnect functionality we
+  // have in place. The underlying amqp lib does not consider this a case for reconnects, so we have
+  // to deal with this manually. This covers the case when the amqp server is restarted.
+  conn.on("close", function (hadError) {
+    // If an error caused the close, we do nothing. Normal error handling should work fine.
+    // Also don't reconnect if we explictly have closed the connection via the "close" function
+    if (!hadError && !explicitClose) {
+      // This will kill the process if dieOnError is set
+      handleError("Connection closed without errors");
+      // Otherwise we re-inititate the connection
+      if (!behaviour.dieOnError) {
+        setImmediate(function () {
+          doConnect(connectionConfig, behaviour, callback);
+        });
+      }
+    }
+  });
+
   conn.on("error", function (connectionError) {
     handleError(connectionError, logger);
   });
+
   conn.once("error", callback);
+
   conn.once("ready", function () {
     conn.removeListener("error", callback);
     getExchange(function (exch) {
@@ -137,7 +155,7 @@ function doConnect(connectionConfig, behaviour, callback) {
           queue.bind(behaviour.exchange, routingPattern);
         });
         queue.on("basicCancel", function () {
-          handleError("Subscription cancelled from server side", onExclusiveCallback, logger);
+          handleError("Subscription cancelled from server side", logger);
         });
         queue.on("error", function (err) {
           if (err.code === 403) {
@@ -169,7 +187,7 @@ function doConnect(connectionConfig, behaviour, callback) {
       });
       queue.once("basicConsumeOk", function () {return actualSubscribeCallback(); });
       queue.on("basicCancel", function () {
-        handleError("Subscription cancelled from server side", actualSubscribeCallback, logger);
+        handleError("Subscription cancelled from server side", logger, true);
       });
       queue.bind(behaviour.exchange, routingKey);
       queue.subscribe(subscribeOptions, handler);
@@ -177,15 +195,21 @@ function doConnect(connectionConfig, behaviour, callback) {
   }
 
   function close(callback) {
-    conn.disconnect(callback);
+    explicitClose = true;
+    if (callback) {
+      conn.once("close", function () {callback();});
+    }
+    conn.disconnect();
   }
 
-  function handleError(error, logger) {
+  function handleError(error, logger, reconnect) {
     if (behaviour.dieOnError) {
       setTimeout(function () {
         logger.error(error);
         process.exit(1);
       }, 3000);
+    } else if (reconnect) {
+      conn.socket.destroy();
     }
     if (logger) {
       logger.error(util.format("Amqp error", error, "\n", error.stack));

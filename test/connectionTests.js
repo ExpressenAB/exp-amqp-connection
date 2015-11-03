@@ -8,7 +8,7 @@ var async = require("async");
 var util = require("util");
 var extend = require("../extend");
 
-var defaultBehaviour = {exchange: "e1", logger: console};
+var defaultBehaviour = {exchange: "e1", logger: console, consumerCancelNotification: true, queueOptions: {exclusive: true}};
 var defaultConnOpts = {};
 var connection;
 
@@ -54,10 +54,33 @@ Feature("Pubsub", function () {
       connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
     });
     And("We create a subscription", function (done) {
-      connection.subscribe("testRoutingKey", "testQ", function (msg) {
+      connection.subscribe("testRoutingKey", "testQ1", function (msg) {
         message = msg;
       }, done);
     });
+    And("We publish a message", function (done) {
+      connection.publish("testRoutingKey", {testData: "hello"}, done);
+    });
+    Then("It should arrive correctly", function () {
+      assert.equal(message.testData, "hello");
+    });
+  });
+
+  Scenario("Cancelled sub", function () {
+    var message;
+    after(disconnect);
+    And("We have a connection", function (done) {
+      connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
+    });
+    And("We create a subscription", function (done) {
+      connection.subscribe("testRoutingKey", "testQ2", function (msg) {
+        message = msg;
+      }, done);
+    });
+    And("We delete the queue", function (done) {
+      deleteRabbitQueue("testQ2", done);
+    });
+    And("We wait a little", function (done) {setTimeout(done, 3000);});
     And("We publish a message", function (done) {
       connection.publish("testRoutingKey", {testData: "hello"}, done);
     });
@@ -97,7 +120,7 @@ Feature("Dead letter exchange", function () {
     });
 
     And("We reject all messages", function (done) {
-      connection.subscribe("testRoutingKey", "testQ", function (msg, headers, deliveryInfo, ack) {
+      connection.subscribe("testRoutingKey", "TestQ3", function (msg, headers, deliveryInfo, ack) {
         ack.reject(false);
       }, done);
     });
@@ -150,8 +173,8 @@ function connect(opts, behaviour, callback) {
   connection = amqp(opts, behaviour, callback);
 }
 
-function disconnect() {
-  if (connection) connection.close();
+function disconnect(done) {
+  if (connection) connection.close(done);
 }
 
 function getRabbitConnections(callback) {
@@ -180,4 +203,8 @@ function killDeadLetter(deadLetterExchangeName, done) {
 
 function killRabbitConnection(connection, done) {
   request.del("http://guest:guest@localhost:15672/api/connections/" + connection.name, done);
+}
+
+function deleteRabbitQueue(queue, done) {
+  request.del("http://guest:guest@localhost:15672/api/queues/%2F/" + queue, done);
 }
