@@ -80,7 +80,7 @@ Feature("Pubsub", function () {
     And("We delete the queue", function (done) {
       deleteRabbitQueue("testQ", done);
     });
-    And("We wait a little", function (done) {setTimeout(done, 1000);});
+    And("We wait a little", function (done) {setTimeout(done, 3000);});
     And("We publish a message", function (done) {
       connection.publish("testRoutingKey", {testData: "hello"}, done);
     });
