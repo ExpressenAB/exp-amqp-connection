@@ -196,7 +196,10 @@ function doConnect(connectionConfig, behaviour, callback) {
 
   function close(callback) {
     explicitClose = true;
-    conn.disconnect(callback);
+    if (callback) {
+      conn.once("close", function () {callback();});
+    }
+    conn.disconnect();
   }
 
   function handleError(error, logger, reconnect) {

@@ -173,8 +173,8 @@ function connect(opts, behaviour, callback) {
   connection = amqp(opts, behaviour, callback);
 }
 
-function disconnect() {
-  if (connection) connection.close();
+function disconnect(done) {
+  if (connection) connection.close(done);
 }
 
 function getRabbitConnections(callback) {
