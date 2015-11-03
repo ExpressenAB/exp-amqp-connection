@@ -8,7 +8,7 @@ var async = require("async");
 var util = require("util");
 var extend = require("../extend");
 
-var defaultBehaviour = {exchange: "e1", logger: console, consumerCancelNotification: true};
+var defaultBehaviour = {exchange: "e1", logger: console, consumerCancelNotification: true, queueOptions: {exclusive: true}};
 var defaultConnOpts = {};
 var connection;
 
