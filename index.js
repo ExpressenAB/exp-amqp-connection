@@ -56,15 +56,11 @@ function doConnect(connectionConfig, behaviour, callback) {
     {"capabilities": {"consumer_cancel_notify": !!behaviour.consumerCancelNotification}};
   connectionConfig.heartbeat = 10;
   var conn = amqp.createConnection(connectionConfig, {reconnect: !behaviour.dieOnError});
-  var explicitClose = false;
 
   if (behaviour.reuse) {
     savedConns[behaviour.reuse] = conn;
   }
 
-  // Connection that is closed without errors should trigger whatever reconnect functionality we
-  // have in place. The underlying amqp lib does not consider this a case for reconnects, so we have
-  // to deal with this manually. This covers the case when the amqp server is restarted.
   conn.on("close", function (hadError) {
     logger.info("Connectoion closed", hadError);
   });
@@ -185,7 +181,6 @@ function doConnect(connectionConfig, behaviour, callback) {
   }
 
   function close(callback) {
-    explicitClose = true;
     if (callback) {
       conn.once("close", function () {callback();});
     }
