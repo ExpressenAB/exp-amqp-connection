@@ -71,9 +71,14 @@ function doConnect(connectionConfig, behaviour, callback) {
 
   conn.once("error", callback);
 
+  conn.on("ready", function () {
+    logger.info("Connected to rabbit host", connectionConfig.host);
+  });
+
   conn.once("ready", function () {
     conn.removeListener("error", callback);
     getExchange(function (exch) {
+      logger.info("Exchange opened to rabbit host", connectionConfig.host);
       exchange = exch;
       conn.api = api;
       conn.emit("bootstrapped", api);
