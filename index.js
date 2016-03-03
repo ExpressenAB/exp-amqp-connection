@@ -119,7 +119,7 @@ function doConnect(connectionConfig, behaviour, callback) {
       queueOptions["arguments"] = queueOptions["arguments"] || {};
       queueOptions["arguments"]["x-dead-letter-exchange"] = behaviour.deadLetterExchangeName;
       if (!subscribeOptions.ack) {
-        throw new Error("Ack needs to be enabled in subscribeOptions for dead letter exchange to work");
+        throw new Error("Ack must be enabled in subscribeOptions for dead letter exchange to work");
       }
     }
     return queueOptions;
@@ -133,8 +133,8 @@ function doConnect(connectionConfig, behaviour, callback) {
     });
   }
 
-  function subscribeExclusive(routingKey, queueName, handler, subscribeCallback, queueIsTakenCallback) {
-    queueIsTakenCallback = queueIsTakenCallback || function () {};
+  function subscribeExclusive(routingKey, queueName, handler, subscribeCallback, waitCallback) {
+    waitCallback = waitCallback || function () {};
     var onExclusiveCallback = subscribeCallback || function () {};
     var internalSubscribeOptions = extend(subscribeOptions, {exclusive: true});
     var routingPatterns = Array.isArray(routingKey) ? routingKey : [routingKey];
@@ -151,7 +151,7 @@ function doConnect(connectionConfig, behaviour, callback) {
         queue.on("error", function (err) {
           if (err.code === 403) {
             logger.info("Someone else is using the queue, we'll try again", id);
-            queueIsTakenCallback(err, id);
+            waitCallback(err, id);
             setTimeout(attemptExclusiveSubscribe.bind(null, ++id), 5000);
           } else {
             logger.error("Queue error", err.stack || err, id);
@@ -161,7 +161,7 @@ function doConnect(connectionConfig, behaviour, callback) {
           handler(message, headers, deliveryInfo, ack);
         }).addCallback(function () {
           onExclusiveCallback();
-          logger.info("Exclusively subscribing to '" + queueName + "'. Other instances will have to wait.", id);
+          logger.info("Exclusively subscribing to '" + queueName + "'", id);
         });
       });
     }
