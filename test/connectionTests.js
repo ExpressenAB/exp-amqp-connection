@@ -66,6 +66,33 @@ Feature("Pubsub", function () {
     });
   });
 
+  Scenario("Multiple routing keys", function () {
+    var messages = [];
+    var handler = function (message) { messages.push(message.testData); };
+    after(disconnect);
+    When("We have a connection", function (done) {
+      connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
+    });
+    And("We create a subscription for routing key 1", function (done) {
+      connection.subscribe("rk1", "testQ1", handler, done);
+    });
+    And("We create a subscription for routing key 2 with the same handler", function (done) {
+      connection.subscribe("rk2", "testQ1", handler, done);
+    });
+    When("We publish a message with routing key 1", function (done) {
+      connection.publish("rk1", {testData: "m1"}, done);
+    });
+    Then("It should be delivered once", function () {
+      assert.deepEqual(["m1"], messages);
+    });
+    When("We publish a message with routing key 2", function (done) {
+      connection.publish("rk2", {testData: "m2"}, done);
+    });
+    Then("It should be delivered once", function () {
+      assert.deepEqual(messages, ["m1", "m2"]);
+    });
+  });
+
   Scenario("Cancelled sub", function () {
     var message;
     after(disconnect);
