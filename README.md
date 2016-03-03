@@ -24,7 +24,8 @@ amqpConn({host: "amqphost"}, {reuse: "myKey", exchange: "myExchange"}, function 
 });
 ```
 
-The first arg is amqp connection options. See https://github.com/postwait/node-amqp#connection-options-and-url.
+The first arg is amqp connection options.
+See https://github.com/postwait/node-amqp#connection-options-and-url.
 
 The second arg defines various behaviour options:
 
@@ -38,7 +39,9 @@ var behaviourOpts = {
   exchangeOptions: "...", // Options to pass to the exchange
   queueOptions: "...", // Options to pass to the queue
   subscribeOptions: "...", // Options to use for subscribing,
-  consumerCancelNotification: "..." // If true, enable rabbit consumner cancel notifications. Causes exit of dieOnError is set, otherwise the notification will just be logged
+  consumerCancelNotification: "..." // If true, enable rabbit consumner cancel notifications.
+                                    // Causes exit of dieOnError is set, otherwise the notification
+                                    // will just be logged
 };
 ```
 
@@ -74,18 +77,27 @@ amqpConn({host: "amqpHost"}, {exchange: "myExchange"}, function (err, conn) {
 
 ### Subscribe
 
-NOTE: it is highly recommended to enable both ``dieOnError`` as well as ``consumerCancelNotification`` when subscribing
-to ensure a restart/reconnect in all scenarios where the subscription fails.
+NOTE: it is highly recommended to enable both ``dieOnError`` as well as
+``consumerCancelNotification`` when subscribing to ensure a restart/reconnect in all scenarios
+where the subscription fails.
 
 ```js
 var amqpConn = require("exp-amqp-connection");
 var behaviour = {exchange: "myExchange", dieOnError: true, consumerCancelNotification: true};
 amqpConn({host: "amqpHost"}, behaviour, function (err, conn) {
   if (err) return console.err(err);
-  conn.subscribe("myRoutingKey", "myQueueName", function (message, headers, deliveryInfo, messageObject) {
-    console.log("Got message", message);
+  conn.subscribe("myRoutingKey", "myQueueName", function (msg, headers, deliveryInfo, msgObject) {
+    console.log("Got message", msg);
   });
 });
+```
+
+You can subscribe to multiple routing keys by passing an array instead of a string:
+
+```js
+  ...
+  conn.subscribe(["routingKey1", "routingKey2"], "myQueueName", function (msg) { ... });
+  ...
 ```
 
 ### Reuse connection
@@ -125,7 +137,8 @@ amqpConn({host: "amqphost"}, {dieOnError: true}, function (err, conn) {
 
 Messages from a queue can be 'dead-lettered'; that is, republished to another exchange.
 For more information: https://www.rabbitmq.com/dlx.html
-This option will create a dead letter queue with the name `deadLetterExchangeName + ".deadLetterQueue"`
+This option will create a dead letter queue with the name
+`deadLetterExchangeName + ".deadLetterQueue"`
 
 ```js
 var amqpConn = require("exp-amqp-connection");
@@ -140,14 +153,14 @@ var options = {
 
 amqpConn({host: "amqpHost"}, options, function (err, conn) {
   if (err) return console.err(err);
-  conn.subscribe("myRoutingKey", "myQueueName", function (message, headers, deliveryInfo, messageObject) {
-    if (message) {
+  conn.subscribe("myRoutingKey", "myQueueName", function (msg, headers, deliveryInfo, msgObject) {
+    if (msg) {
       messageObject.acknowledge();
     } else {
       messageObject.reject(false); // reject=true, requeue=false causes dead-lettering
     }
 
-    console.log("Got message", message);
+    console.log("Got message", msg);
   });
 });
 ```
