@@ -169,9 +169,9 @@ function doConnect(connectionConfig, behaviour, callback) {
     attemptExclusiveSubscribe(1);
   }
 
-  function subscribe(routingKey, queueName, handler, subscribeCallback) {
+  function subscribe(routingKeyOrKeys, queueName, handler, subscribeCallback) {
     var actualSubscribeCallback = subscribeCallback || function () {};
-
+    var routingKeys = Array.isArray(routingKeyOrKeys) ? routingKeyOrKeys : [routingKeyOrKeys];
     conn.queue(queueName, getQueueOptions(), function (queue) {
       queue.on("error", function (queueError) {
         return actualSubscribeCallback(queueError);
@@ -180,7 +180,9 @@ function doConnect(connectionConfig, behaviour, callback) {
       queue.on("basicCancel", function () {
         handleError("Subscription cancelled from server side", logger, true);
       });
-      queue.bind(behaviour.exchange, routingKey);
+      routingKeys.forEach(function (routingKey) {
+        queue.bind(behaviour.exchange, routingKey);
+      });
       queue.subscribe(subscribeOptions, handler);
     });
   }

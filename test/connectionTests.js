@@ -73,11 +73,8 @@ Feature("Pubsub", function () {
     When("We have a connection", function (done) {
       connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
     });
-    And("We create a subscription for routing key 1", function (done) {
-      connection.subscribe("rk1", "testQ1", handler, done);
-    });
-    And("We create a subscription for routing key 2 with the same handler", function (done) {
-      connection.subscribe("rk2", "testQ1", handler, done);
+    And("We create a subscription for routing key 1 and 2", function (done) {
+      connection.subscribe(["rk1", "rk2"], "testQ1", handler, done);
     });
     When("We publish a message with routing key 1", function (done) {
       connection.publish("rk1", {testData: "m1"}, done);
