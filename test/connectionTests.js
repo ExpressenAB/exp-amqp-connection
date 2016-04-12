@@ -109,9 +109,7 @@ Scenario("Cancelled sub", function () {
     connect(defaultUrl, defaultBehaviour, ignoreErrors(done));
   });
   And("We create a subscription", function (done) {
-    connection.subscribe("testRoutingKey", "testQ2", function (msg) {
-      message = msg;
-    }, done);
+    connection.subscribe("testRoutingKey", "testQ2", function () {}, done);
   });
   And("We delete the queue, an error should be raised", function (done) {
     connection.on("error", function (err) {
