@@ -2,14 +2,20 @@
 
 [![Build Status](https://travis-ci.org/ExpressenAB/exp-amqp-connection.svg?branch=master)](https://travis-ci.org/ExpressenAB/exp-amqp-connection)
 
+Usage patterns
+
+- Publish
+- Subscribe - exit process on error
+- Subscribe - reconnect on error
+
+NOTE: Not possible to create channels, inheritance from node-amqp.
+
 ## Features
 
 * Hides underlying amqp implementation details
 * Publish
 * Subscribe
-* Optionally kill process on errors
 * Reuse connection
-* Dead letter exchange handling
 
 ## API
 
