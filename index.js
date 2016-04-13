@@ -88,7 +88,7 @@ function doConnect(url, behaviour, callback) {
   function subscribe(routingKeyOrKeys, queueName, handler, subCallback) {
     subCallback = subCallback || function () {};
     var routingKeys = Array.isArray(routingKeyOrKeys) ? routingKeyOrKeys : [routingKeyOrKeys];
-
+    channel.assertExchange(behaviour.exchange);
     channel.assertQueue(queueName, {}, function (queueErr) {
       if (queueErr) return subCallback(queueErr);
       routingKeys.forEach(function (key) {
