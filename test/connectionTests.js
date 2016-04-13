@@ -9,7 +9,7 @@ var assert = require("assert");
 var async = require("async");
 var _ = require("lodash");
 
-var defaultBehaviour = {exchange: "e1", confirmMode: true};
+var defaultBehaviour = {exchange: "e1", confirm: true};
 var reuseBehaviour = _.assign({}, defaultBehaviour, {reuse: "test"});
 var defaultUrl = "amqp://localhost";
 var connection;
