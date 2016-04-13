@@ -42,6 +42,7 @@ function doConnect(url, behaviour, callback) {
 
   var channel = null;
   var conn = null;
+  var explicitClose = false;
   var reuse = new EventEmitter();
   if (behaviour.reuse) {
     savedConns[behaviour.reuse] = reuse;
@@ -60,7 +61,9 @@ function doConnect(url, behaviour, callback) {
       }
       channel.on("close", function (why) {
         savedConns[behaviour.reuse] = null;
-        api.emit("close", why);
+        if (!explicitClose) {
+          api.emit("error", why);
+        }
       });
       channel.on("error", function (amqpError) {
         savedConns[behaviour.reuse] = null;
@@ -113,6 +116,7 @@ function doConnect(url, behaviour, callback) {
   }
 
   function close(closeCallback) {
+    explicitClose = true;
     if (channel) {
       channel.close();
     }
