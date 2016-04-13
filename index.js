@@ -70,7 +70,7 @@ function doConnect(url, behaviour, callback) {
       reuse.api = api;
       return callback(null, api);
     };
-    if (behaviour.confirmMode) {
+    if (behaviour.confirm) {
       conn.createConfirmChannel(onChannel);
     } else {
       conn.createChannel(onChannel);
@@ -80,7 +80,7 @@ function doConnect(url, behaviour, callback) {
   function publish(routingKey, message, pubCallback) {
     var encodedMsg = encode(message);
     channel.publish(behaviour.exchange, routingKey, encodedMsg.buffer, encodedMsg.props);
-    if (behaviour.confirmMode) {
+    if (behaviour.confirm) {
       channel.waitForConfirms(pubCallback || function () {});
     }
   }
@@ -104,12 +104,12 @@ function doConnect(url, behaviour, callback) {
     });
   }
 
-  function ack(msg) {
-    channel.ack(msg);
+  function ack(msg, allUpTo) {
+    channel.ack(msg, allUpTo);
   }
 
-  function nack(msg) {
-    channel.nack(msg);
+  function nack(msg, allUpTo, requeue) {
+    channel.nack(msg, allUpTo, requeue);
   }
 
   function close(closeCallback) {
