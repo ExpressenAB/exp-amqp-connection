@@ -34,8 +34,6 @@ function doConnect(url, behaviour, callback) {
   var api = _.assign(new EventEmitter(), {
     subscribe: subscribe,
     publish: publish,
-    ack: ack,
-    nack: nack,
     deleteQueue: deleteQueue,
     close: close
   });
@@ -55,7 +53,6 @@ function doConnect(url, behaviour, callback) {
     var onChannel = function (channelErr, newChannel) {
       if (channelErr) return callback(channelErr);
       channel = newChannel;
-      channel.prefetch(behaviour.prefetch);
       if (behaviour.exchange) {
         channel.assertExchange(behaviour.exchange, "topic");
       }
@@ -88,28 +85,25 @@ function doConnect(url, behaviour, callback) {
   function subscribe(routingKeyOrKeys, queueName, handler, subCallback) {
     subCallback = subCallback || function () {};
     var routingKeys = Array.isArray(routingKeyOrKeys) ? routingKeyOrKeys : [routingKeyOrKeys];
-    channel.assertExchange(behaviour.exchange);
-    channel.assertQueue(queueName, {}, function (queueErr) {
-      if (queueErr) return subCallback(queueErr);
-      routingKeys.forEach(function (key) {
-        channel.bindQueue(queueName, behaviour.exchange, key, {}, function (bindErr) {
-          if (bindErr) return subCallback(bindErr);
+    conn.createChannel(function (channelErr, subChannel) {
+      if (channelErr) return subCallback(channelErr);
+      subChannel.prefetch(behaviour.prefetch);
+      subChannel.assertExchange(behaviour.exchange, "topic");
+      subChannel.assertQueue(queueName, {}, function (queueErr) {
+        if (queueErr) return subCallback(queueErr);
+        routingKeys.forEach(function (key) {
+          subChannel.bindQueue(queueName, behaviour.exchange, key, {}, function (bindErr) {
+            if (bindErr) return subCallback(bindErr);
+          });
         });
+        var amqpHandler = function (message) {
+          var ackFun = function () { subChannel.ack(message); };
+          handler(decode(message), message, {ack: ackFun});
+        };
+        var consumeOpts = {noAck: !behaviour.ack};
+        subChannel.consume(queueName, amqpHandler, consumeOpts, subCallback);
       });
-      var amqpHandler = function (message) {
-        handler(decode(message), message);
-      };
-      var consumeOpts = {noAck: !behaviour.ack};
-      channel.consume(queueName, amqpHandler, consumeOpts, subCallback);
     });
-  }
-
-  function ack(msg, allUpTo) {
-    channel.ack(msg, allUpTo);
-  }
-
-  function nack(msg, allUpTo, requeue) {
-    channel.nack(msg, allUpTo, requeue);
   }
 
   function close(closeCallback) {
