@@ -82,10 +82,7 @@ function doConnect(url, behaviour, callback) {
 
   function publish(routingKey, message, pubCallback) {
     var encodedMsg = encode(message);
-    channel.publish(behaviour.exchange, routingKey, encodedMsg.buffer, encodedMsg.props);
-    if (behaviour.confirm) {
-      channel.waitForConfirms(pubCallback || function () {});
-    }
+    channel.publish(behaviour.exchange, routingKey, encodedMsg.buffer, encodedMsg.props, pubCallback);
   }
 
   function subscribe(routingKeyOrKeys, queueName, handler, subCallback) {
