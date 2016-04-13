@@ -59,7 +59,7 @@ function doConnect(url, behaviour, callback) {
       channel.on("close", function (why) {
         savedConns[behaviour.reuse] = null;
         if (!explicitClose) {
-          api.emit("error", why);
+          api.emit("error", why || "Connection closed unexpectedly");
         }
       });
       channel.on("error", function (amqpError) {

@@ -42,6 +42,9 @@ Feature("Connect", function () {
     When("We have a reuse connection", function (done) {
       connect(defaultUrl, reuseBehaviour, ignoreErrors(done));
     });
+    And("We deal with error events from the connection", function () {
+      connection.on("error", function () {});
+    });
     And("And we kill all rabbit connections", killRabbitConnections);
     And("We sleep a while", function (done) { setTimeout(done, 500); });
     And("We connect again", function (done) {
@@ -223,7 +226,10 @@ function callOnce(callback) {
 }
 
 function connect(opts, behaviour, callback) {
-  connection = amqp(opts, behaviour, callback);
+  amqp(opts, behaviour, function (err, conn) {
+    connection = conn;
+    return callback(err, conn);
+  });
 }
 
 function disconnect(done) {
