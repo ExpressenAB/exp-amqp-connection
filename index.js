@@ -2,22 +2,26 @@
 var amqp = require("amqplib/callback_api");
 var EventEmitter = require("events");
 var _ = require("lodash");
+var url = require("url");
+var qs = require("querystring");
 
 var JSON_TYPE = "application/json";
 var defaultBehaviour = {
   reuse: "default",
   ack: false,
-  confirm: false
+  confirm: false,
+  heartbeat: 10,
+  productName: require("./package.json").name
 };
 
 var savedConns = {};
 
-function connect(url, behaviour, callback) {
+function connect(amqpUrl, behaviour, callback) {
   behaviour = _.assign(defaultBehaviour, behaviour);
   if (behaviour.reuse && attemptReuse(behaviour.reuse, callback)) {
     return;
   }
-  return doConnect(url, behaviour, callback);
+  return doConnect(amqpUrl, behaviour, callback);
 }
 
 function attemptReuse(key, callback) {
@@ -36,7 +40,10 @@ function attemptReuse(key, callback) {
   return false;
 }
 
-function doConnect(url, behaviour, callback) {
+function doConnect(amqpUrl, behaviour, callback) {
+  var urlObj = url.parse(amqpUrl);
+  urlObj.search = qs.stringify(_.defaults(qs.parse(urlObj.search), {heartbeat: behaviour.heartbeat}));
+  amqpUrl = url.format(urlObj);
   var api = _.assign(new EventEmitter(), {
     subscribe: subscribe,
     publish: publish,
@@ -52,8 +59,8 @@ function doConnect(url, behaviour, callback) {
     savedConns[behaviour.reuse] = reuse;
   }
 
-  // TODO: enable heartbeats
-  amqp.connect(url, function (connErr, newConnection) {
+  var opts = {clientProperties: {product: behaviour.productName}};
+  amqp.connect(amqpUrl, opts, function (connErr, newConnection) {
     if (connErr) {
       savedConns[behaviour.reuse] = null;
       reuse.emit("bootstrapped", connErr);
