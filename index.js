@@ -1,8 +1,8 @@
 "use strict";
 var amqp = require("amqplib/callback_api");
-var EventEmitter = require("events");
 var _ = require("lodash");
 var url = require("url");
+var EventEmitter = require("events");
 var qs = require("querystring");
 
 var JSON_TYPE = "application/json";
@@ -11,7 +11,8 @@ var defaultBehaviour = {
   ack: false,
   confirm: false,
   heartbeat: 10,
-  productName: require("./package.json").name
+  productName: require("./package.json").name,
+  errorHandler: console.error
 };
 
 var savedConns = {};
@@ -44,12 +45,12 @@ function doConnect(amqpUrl, behaviour, callback) {
   var urlObj = url.parse(amqpUrl);
   urlObj.search = qs.stringify(_.defaults(qs.parse(urlObj.search), {heartbeat: behaviour.heartbeat}));
   amqpUrl = url.format(urlObj);
-  var api = _.assign(new EventEmitter(), {
+  var api = {
     subscribe: subscribe,
     publish: publish,
     deleteQueue: deleteQueue,
     close: close
-  });
+  };
 
   var channel = null;
   var conn = null;
@@ -77,16 +78,16 @@ function doConnect(amqpUrl, behaviour, callback) {
       channel.on("close", function (why) {
         savedConns[behaviour.reuse] = null;
         if (!explicitClose) {
-          api.emit("error", why || "Connection closed unexpectedly");
+         behaviour.errorHandler(why || "Connection closed unexpectedly");
         }
       });
       channel.on("error", function (amqpError) {
         savedConns[behaviour.reuse] = null;
-        api.emit("error", amqpError);
+        behaviour.errorHandler(amqpError);
       });
       conn.on("error", function (amqpError) {
         savedConns[behaviour.reuse] = null;
-        api.emit("error", amqpError);
+        behaviour.errorHandler(amqpError);
       });
       reuse.emit("bootstrapped", null, api);
       reuse.api = api;
@@ -158,7 +159,7 @@ function doConnect(amqpUrl, behaviour, callback) {
   }
 
   function decode(message) {
-    if (!message) api.emit("error", "Subscription cancelled");
+    if (!message) behaviour.errorHandler("Subscription cancelled");
     var messageStr = message.content.toString("utf8");
     return (message.properties.contentType === JSON_TYPE) ? JSON.parse(messageStr) : messageStr;
   }
