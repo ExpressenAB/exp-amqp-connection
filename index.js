@@ -4,10 +4,16 @@ var EventEmitter = require("events");
 var _ = require("lodash");
 
 var JSON_TYPE = "application/json";
+var defaultBehaviour = {
+  reuse: "default",
+  ack: false,
+  confirm: false
+};
 
 var savedConns = {};
 
 function connect(url, behaviour, callback) {
+  behaviour = _.assign(defaultBehaviour, behaviour);
   if (behaviour.reuse && attemptReuse(behaviour.reuse, callback)) {
     return;
   }
@@ -22,8 +28,8 @@ function attemptReuse(key, callback) {
   }
 
   if (savedConn) {
-    savedConn.once("bootstrapped", function (api) {
-      callback(null, api);
+    savedConn.once("bootstrapped", function (error, api) {
+      callback(error, api);
     });
     return true;
   }
@@ -48,7 +54,12 @@ function doConnect(url, behaviour, callback) {
 
   // TODO: enable heartbeats
   amqp.connect(url, function (connErr, newConnection) {
-    if (connErr) return callback(connErr);
+    if (connErr) {
+      savedConns[behaviour.reuse] = null;
+      reuse.emit("bootstrapped", connErr);
+      return callback(connErr);
+    }
+
     conn = newConnection;
     var onChannel = function (channelErr, newChannel) {
       if (channelErr) return callback(channelErr);
@@ -66,7 +77,11 @@ function doConnect(url, behaviour, callback) {
         savedConns[behaviour.reuse] = null;
         api.emit("error", amqpError);
       });
-      reuse.emit("bootstrapped", api);
+      conn.on("error", function (amqpError) {
+        savedConns[behaviour.reuse] = null;
+        api.emit("error", amqpError);
+      });
+      reuse.emit("bootstrapped", null, api);
       reuse.api = api;
       return callback(null, api);
     };

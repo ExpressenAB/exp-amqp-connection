@@ -2,171 +2,87 @@
 
 [![Build Status](https://travis-ci.org/ExpressenAB/exp-amqp-connection.svg?branch=master)](https://travis-ci.org/ExpressenAB/exp-amqp-connection)
 
-Usage patterns
+## Purpouse and features
 
-- Publish
-- Subscribe - exit process on error
-- Subscribe - reconnect on error
+This library is intended for doing simple publish and subscribe to an amqp broker.
 
-NOTE: Not possible to create channels, inheritance from node-amqp.
+- Easy and declarative way to use an amqp broker for publishing and subscribing.
+- Hides underlying amqp details as much as possible.
+- Tries to maintain amqp best practices such as: separate channels for subscriptions and publishing, consumer cancel notifications, confirm channels etc.
+- Optimized for low to medium message rates. If your app processes a large number of messages (say 20 messages per second) or more, use a library that is more closely attached to the amqp protocol.
 
-## Features
+## Example usages
 
-* Hides underlying amqp implementation details
-* Publish
-* Subscribe
-* Reuse connection
-
-## API
-
-A single function is exported:
+### Publisher
 
 ```js
-var amqpConn = require("exp-amqp-connection");
+var amqpConnection = require("exp-amqp-connection");
 
-amqpConn({host: "amqphost"}, {reuse: "myKey", exchange: "myExchange"}, function (err, conn) {
-  if (err) return console.err(err);
-  ...
-});
-```
-
-The first arg is amqp connection options.
-See https://github.com/postwait/node-amqp#connection-options-and-url.
-
-The second arg defines various behaviour options:
-
-```javascript
-var behaviourOpts = {
-  dieOnError: "...", // If true, kill the node process in case of amqp errors
-  exchange: "...", // Name of exchange to use. Leave undefined for rabbit default exchange.
-  reuse: "...", // Reuse connections using the specified key
-  logger: "..." // one-arg-function used for logging errors. Defaults to console.log
-  deadLetterExchangeName: "...", // Enable dead letter exchange by setting a name for it.
-  exchangeOptions: "...", // Options to pass to the exchange
-  queueOptions: "...", // Options to pass to the queue
-  subscribeOptions: "...", // Options to use for subscribing,
-  consumerCancelNotification: "..." // If true, enable rabbit consumner cancel notifications.
-                                    // Causes exit of dieOnError is set, otherwise the notification
-                                    // will just be logged
+var amqpBehaviour = {
+  exchange: "myExchange"
 };
-```
 
-More info om consumer cancel notifications here: http://www.rabbitmq.com/consumer-cancel.html
-
-Default values for options, these will be merged with your changes:
-
-```javascript
-var defaultExchangeOptions = {
-  durable: true,
-  autoDelete: false,
-  confirm: true
-};
-var defaultQueueOptions = {
-  autoDelete: true
-};
-var defaultSubscribeOptions = {};
-
-```
-
-## Examples
-
-### Publish
-
-```js
-var amqpConn = require("exp-amqp-connection");
-
-amqpConn({host: "amqpHost"}, {exchange: "myExchange"}, function (err, conn) {
-  if (err) return console.err(err);
-  conn.publish("myRoutingKey", "a message");
-});
-```
-
-### Subscribe
-
-NOTE: it is highly recommended to enable both ``dieOnError`` as well as
-``consumerCancelNotification`` when subscribing to ensure a restart/reconnect in all scenarios
-where the subscription fails.
-
-```js
-var amqpConn = require("exp-amqp-connection");
-var behaviour = {exchange: "myExchange", dieOnError: true, consumerCancelNotification: true};
-amqpConn({host: "amqpHost"}, behaviour, function (err, conn) {
-  if (err) return console.err(err);
-  conn.subscribe("myRoutingKey", "myQueueName", function (msg, headers, deliveryInfo, msgObject) {
-    console.log("Got message", msg);
+amqpConnection("amqp://localhost", amqpBehaviour, function (connErr, conn) {
+  if (connErr) return console.log("AMQP connect error", connErr);
+  conn.on("error", function (amqpErr) {
+    console.log("Uh-oh, amqp error: ", amqpErr);
   });
+  conn.publish("data", "routingKey");
 });
 ```
 
-You can subscribe to multiple routing keys by passing an array instead of a string:
+Your app will now use a single connection/channel for publishing to rabbit. In case the connection goes down messages will be queued and sent once the connection is up and running again.
+
+### Subscriber (kill process on error)
 
 ```js
-  ...
-  conn.subscribe(["routingKey1", "routingKey2"], "myQueueName", function (msg) { ... });
-  ...
+var amqpConnection = require("exp-amqp-connection");
+var amqpBehaviour = {reuse: "myKey", exchange: "myExchange", ack: "true"};
+
+amqpConnection("amqp://user:password@localhost", function (err, conn) {
+  if (err) return console.log("AMQP connect error", err);
+  conn.subsribe("routingKey", "someQueue", function (message, meta, notify) {
+    console.log("Got message", message, "with routing key", meta.routingKey);
+    notify.ack();
+  })
+});
 ```
 
-### Reuse connection
+This is the simplest and most robust way of dealing with connection problems and other errors when using an amqp.connection. Ingore any "error" events from the amqp connection which will cause the process to crash. Then let your process manager (pm2, forever etc) restart the process.
 
-All calls providing the same reuse key will get the same connection returned. If no
-reuse key is provided, a new connection is returned each time.
+### Subscriber (reconnect on error)
 
-The following will yield a single connection to rabbit instead of 5000:
+
+If you do not wish to crash your app in case of amqp errors, you have to re-initilize the subscription in case of errors instead. This requires a few more lines of code:
 
 ```js
-var amqpConn = require("exp-amqp-connection");
+var amqpConnection = require("exp-amqp-connection");
+var amqpBehaviour = {exchange: "myExchange", ack: "true"};
+var resubTimer;
 
-for(var i = 0; i < 5000; i++) {
-  amqpConn({host: "amqpHost"}, {reuse: "someKey"}, function (err, conn) {
-    if (err) return console.err(err);
-    conn.publish("myRoutingKey", "a message");
+function subscribe() {
+  amqpConnection("amqp://localhost", amqpBehaviour, function (err, conn) {
+    resubTimer = null;
+    if (err) return handleError(err);
+    conn.on("error", handleError);
+    conn.subscribe("routingKey", "someQueue", handleMessage, handleError);
   });
 }
-```
 
-### Die on error
+function handleMessage(message, meta, notify) {
+  console.log("Got message", message, "with routing key", meta.routingKey);
+  notify.ack();
+}
 
-In certain cases you want to crash the entire node process when there is a problem
-with the amqp connection. For example durable subscriptions have problems recovering
-in certain corner cases, so in order to not risk getting into a deadlocked state it
-is better to crash and let the process restart.
-
-```js
-var amqpConn = require("exp-amqp-connection");
-amqpConn({host: "amqphost"}, {dieOnError: true}, function (err, conn) {
-  if (err) return console.err(err);
-  ...
-});
-```
-
-### Dead letter exchange
-
-Messages from a queue can be 'dead-lettered'; that is, republished to another exchange.
-For more information: https://www.rabbitmq.com/dlx.html
-This option will create a dead letter queue with the name
-`deadLetterExchangeName + ".deadLetterQueue"`
-
-```js
-var amqpConn = require("exp-amqp-connection");
-
-var options = {
-  exchange: "myExchange",
-  deadLetterExchangeName: "myExchange.dead",
-  subscribeOptions: {
-    ack: true // Ack must be enabled for dead lettering to work
+function handleError(err) {
+  if (err && !resubTimer) {
+    resubTimer = setTimeout(subscribe, 1000);
   }
 }
 
-amqpConn({host: "amqpHost"}, options, function (err, conn) {
-  if (err) return console.err(err);
-  conn.subscribe("myRoutingKey", "myQueueName", function (msg, headers, deliveryInfo, msgObject) {
-    if (msg) {
-      messageObject.acknowledge();
-    } else {
-      messageObject.reject(false); // reject=true, requeue=false causes dead-lettering
-    }
-
-    console.log("Got message", msg);
-  });
-});
+subscribe();
 ```
+
+## API docs
+
+For now, UTSL :(
