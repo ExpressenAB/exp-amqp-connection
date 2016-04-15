@@ -109,7 +109,6 @@ Scenario("Cancelled sub", function () {
   var error;
   var errorHandlingBehaviour = _.extend({}, defaultBehaviour, {errorHandler: function (err) {
     if (!error) error = err;
-    connection = null;
   }});
   When("We have a connection", function (done) {
     connect(defaultUrl, errorHandlingBehaviour, ignoreErrors(done));
@@ -127,6 +126,7 @@ Scenario("Cancelled sub", function () {
 
 Feature("Bootstrapping", function () {
   var behaviour;
+  before(killRabbitConnections);
   after(disconnect);
   When("We specify a resuse key", function () {
     behaviour = {reuse: "some key"};
@@ -134,7 +134,7 @@ Feature("Bootstrapping", function () {
   And("Create a ton of connections", function (done) {
     var i = 0;
     async.whilst(
-      function () { return i++ < 200; },
+      function () { return i++ < 100; },
       function (cb) { connect(defaultUrl, behaviour, cb); },
       done);
   });

@@ -6,12 +6,13 @@ var EventEmitter = require("events");
 var qs = require("querystring");
 
 var JSON_TYPE = "application/json";
+
 var defaultBehaviour = {
   reuse: "default",
   ack: false,
   confirm: false,
   heartbeat: 10,
-  productName: require("./package.json").name,
+  productName: getProductName(),
   errorHandler: console.error
 };
 
@@ -71,7 +72,7 @@ function doConnect(amqpUrl, behaviour, callback) {
     var onChannel = function (channelErr, newChannel) {
       if (channelErr) return callback(channelErr);
       channel = newChannel;
-      assertExchange(channel);
+      assertExchange(channel, behaviour.exchange);
       channel.on("close", function (why) {
         savedConns[behaviour.reuse] = null;
         behaviour.errorHandler(why || "Connection closed unexpectedly");
@@ -106,7 +107,7 @@ function doConnect(amqpUrl, behaviour, callback) {
     conn.createChannel(function (channelErr, subChannel) {
       if (channelErr) return subCallback(channelErr);
       subChannel.prefetch(behaviour.prefetch);
-      assertExchange(subChannel);
+      assertExchange(subChannel, behaviour.exchange);
       subChannel.assertQueue(queueName, {}, function (queueErr) {
         if (queueErr) return subCallback(queueErr);
         routingKeys.forEach(function (key) {
@@ -115,6 +116,7 @@ function doConnect(amqpUrl, behaviour, callback) {
           });
         });
         var amqpHandler = function (message) {
+          if (!message) return behaviour.errorHandler("Subscription cancelled");
           var ackFun = function () { subChannel.ack(message); };
           handler(decode(message), message, {ack: ackFun});
         };
@@ -139,32 +141,40 @@ function doConnect(amqpUrl, behaviour, callback) {
     channel.deleteQueue(queueName);
   }
 
-  function encode(body) {
-    if (typeof body === "string") {
-      return {buffer: new Buffer(body, "utf8")};
-    } else if (body instanceof Buffer) {
-      return {buffer: body};
-    } else {
-      return {
-        props: {contentType: "application/json"},
-        buffer: new Buffer(JSON.stringify(body), "utf8")
-      };
-    }
-  }
-
-  function decode(message) {
-    if (!message) behaviour.errorHandler("Subscription cancelled");
-    var messageStr = message.content.toString("utf8");
-    return (message.properties.contentType === JSON_TYPE) ? JSON.parse(messageStr) : messageStr;
-  }
-
-  function assertExchange(channel) {
-    if (behaviour.exchange) {
-      channel.assertExchange(behaviour.exchange, "topic");
-    }
-  }
-
   return api;
+}
+
+function encode(body) {
+  if (typeof body === "string") {
+    return {buffer: new Buffer(body, "utf8")};
+  } else if (body instanceof Buffer) {
+    return {buffer: body};
+  } else {
+    return {
+      props: {contentType: "application/json"},
+      buffer: new Buffer(JSON.stringify(body), "utf8")
+    };
+  }
+}
+
+function decode(message) {
+  var messageStr = message.content.toString("utf8");
+  return (message.properties.contentType === JSON_TYPE) ? JSON.parse(messageStr) : messageStr;
+}
+
+function assertExchange(channel, exchange) {
+  if (exchange) {
+    channel.assertExchange(exchange, "topic");
+  }
+}
+
+function getProductName() {
+  try {
+    var pkg = require(process.cwd() + "/package.json");
+    return pkg.name + " " + pkg.version;
+  } catch (e) {
+    return "exp-amqp-connection";
+  }
 }
 
 module.exports = connect;
