@@ -54,7 +54,6 @@ function doConnect(amqpUrl, behaviour, callback) {
 
   var channel = null;
   var conn = null;
-  var explicitClose = false;
   var reuse = new EventEmitter();
   if (behaviour.reuse) {
     savedConns[behaviour.reuse] = reuse;
@@ -77,9 +76,7 @@ function doConnect(amqpUrl, behaviour, callback) {
       }
       channel.on("close", function (why) {
         savedConns[behaviour.reuse] = null;
-        if (!explicitClose) {
-         behaviour.errorHandler(why || "Connection closed unexpectedly");
-        }
+        behaviour.errorHandler(why || "Connection closed unexpectedly");
       });
       channel.on("error", function (amqpError) {
         savedConns[behaviour.reuse] = null;
@@ -130,7 +127,6 @@ function doConnect(amqpUrl, behaviour, callback) {
   }
 
   function close(closeCallback) {
-    explicitClose = true;
     if (channel) {
       channel.close();
     }

@@ -42,9 +42,6 @@ Feature("Connect", function () {
     When("We have a reuse connection", function (done) {
       connect(defaultUrl, reuseBehaviour, ignoreErrors(done));
     });
-    And("We deal with error events from the connection", function () {
-      connection.on("error", function () {});
-    });
     And("And we kill all rabbit connections", killRabbitConnections);
     And("We sleep a while", function (done) { setTimeout(done, 500); });
     And("We connect again", function (done) {
@@ -52,6 +49,7 @@ Feature("Connect", function () {
     });
     Then("The connection should work", testConnection);
   });
+
 });
 
 var pubTests = [
@@ -108,18 +106,22 @@ Scenario("Multiple routing keys", function () {
 
 Scenario("Cancelled sub", function () {
   after(disconnect);
+  var error;
+  var errorHandlingBehaviour = _.extend({}, defaultBehaviour, {errorHandler: function (err) {
+    if (!error) error = err;
+    connection = null;
+  }});
   When("We have a connection", function (done) {
-    connect(defaultUrl, defaultBehaviour, ignoreErrors(done));
+    connect(defaultUrl, errorHandlingBehaviour, ignoreErrors(done));
   });
   And("We create a subscription", function (done) {
     connection.subscribe("testRoutingKey", "testQ2", function () {}, done);
   });
-  And("We delete the queue, an error should be raised", function (done) {
-    connection.on("error", function (err) {
-      assert.equal("Subscription cancelled", err);
-      done();
-    });
-    deleteRabbitQueue("testQ2");
+  And("We delete the queue", function (done) {
+    deleteRabbitQueue("testQ2", done);
+  });
+  Then("An error should be raised", function () {
+    assert.equal("Subscription cancelled", error);
   });
 });
 
@@ -132,7 +134,7 @@ Feature("Bootstrapping", function () {
   And("Create a ton of connections", function (done) {
     var i = 0;
     async.whilst(
-      function () { return i++ < 20; },
+      function () { return i++ < 200; },
       function (cb) { connect(defaultUrl, behaviour, cb); },
       done);
   });
@@ -233,8 +235,14 @@ function connect(opts, behaviour, callback) {
 }
 
 function disconnect(done) {
-  if (connection) connection.close(done);
-  else done();
+  if (connection) {
+    connection.close(function (err) {
+      if (err) console.log("Ignoring close error: ", err);
+      done();
+    });
+  } else {
+    done();
+  }
 }
 
 function getRabbitConnections(callback) {
