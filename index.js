@@ -71,9 +71,7 @@ function doConnect(amqpUrl, behaviour, callback) {
     var onChannel = function (channelErr, newChannel) {
       if (channelErr) return callback(channelErr);
       channel = newChannel;
-      if (behaviour.exchange) {
-        channel.assertExchange(behaviour.exchange, "topic");
-      }
+      assertExchange(channel);
       channel.on("close", function (why) {
         savedConns[behaviour.reuse] = null;
         behaviour.errorHandler(why || "Connection closed unexpectedly");
@@ -108,7 +106,7 @@ function doConnect(amqpUrl, behaviour, callback) {
     conn.createChannel(function (channelErr, subChannel) {
       if (channelErr) return subCallback(channelErr);
       subChannel.prefetch(behaviour.prefetch);
-      subChannel.assertExchange(behaviour.exchange, "topic");
+      assertExchange(subChannel);
       subChannel.assertQueue(queueName, {}, function (queueErr) {
         if (queueErr) return subCallback(queueErr);
         routingKeys.forEach(function (key) {
@@ -158,6 +156,12 @@ function doConnect(amqpUrl, behaviour, callback) {
     if (!message) behaviour.errorHandler("Subscription cancelled");
     var messageStr = message.content.toString("utf8");
     return (message.properties.contentType === JSON_TYPE) ? JSON.parse(messageStr) : messageStr;
+  }
+
+  function assertExchange(channel) {
+    if (behaviour.exchange) {
+      channel.assertExchange(behaviour.exchange, "topic");
+    }
   }
 
   return api;
