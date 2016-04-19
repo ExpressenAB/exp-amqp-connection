@@ -29,7 +29,6 @@ Feature("Connect", function () {
   });
 
   Scenario("Bad connection", function () {
-    after(disconnect);
     When("Trying to connect to bad port", function () {
     });
     Then("We should get an error", function (done) {
@@ -114,6 +113,9 @@ Scenario("Cancelled sub", function () {
     connect(defaultUrl, errorHandlingBehaviour, ignoreErrors(done));
   });
   And("We create a subscription", function (done) {
+    connection.on("error", function (err) {
+      error = err;
+    });
     connection.subscribe("testRoutingKey", "testQ2", function () {}, done);
   });
   And("We delete the queue", function (done) {
@@ -229,8 +231,12 @@ function callOnce(callback) {
 
 function connect(opts, behaviour, callback) {
   amqp(opts, behaviour, function (err, conn) {
+    if (err) return callback(err);
     connection = conn;
-    return callback(err, conn);
+    if (conn.listenerCount("error") === 0) {
+      conn.addListener("error", console.log);
+    }
+    return callback(null, conn);
   });
 }
 
