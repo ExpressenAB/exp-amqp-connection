@@ -8,63 +8,97 @@ This library is intended for doing simple publish and subscribe to an amqp broke
 
 - Easy and declarative way to use an amqp broker for publishing and subscribing.
 - Hides underlying amqp details as much as possible.
-- Tries to maintain amqp best practices such as: separate channels for subscriptions and publishing, consumer cancel notifications, confirm channels etc.
-- Optimized for low to medium message rates. If your app processes a large number of messages (say 20 messages per second) or more, use a library that is more closely attached to the amqp protocol.
+- Tries to maintain amqp best practices such as: separate channels for subscriptions and publishing, consumer cancel notifications, confirm channels, heartbeats etc.
+- Optimized for low to medium message rates. If your app processes a large number of messages (say 20 messages per second) or more,
+  consider a library more closely attached to the amqp protocol such as https://www.npmjs.com/package/amqplib
 
-## Example usages
+## Api
+
+```js
+var broker = require("exp-amqp-connection");
+broker.connect(amqpUrl, beahviour, callback(err, conn) {
+});
+```
+
+### Connect parameters
+* url: amqp url. This is where you specify amqp server adress/port, username, password ect.
+*(example: "amqp://user:pass@localhost:15675")*
+* behaviour: object with fields:
+  * reuse: key for connection re-use. If omitted, a new connection will be returned for each "connect" call. Defaults to the name of the node app from package.json
+  * ack: set to true if messages receiver should be acked (see examples below). Defaults to false.
+  * confirm: whether or not to use confirm mode for publishing. If enabled, a callback can be added to the publish call to see if the publish was successful or not. Default to false.
+  * heartbeat. Send heartbeats at regular intervals to ensure that the server is reachable. Defaults to 10 seconds. Set to 0 to disable heartbeats.
+  * productName: will show up in the admin interface for the connection. Great for debugging purpouses. Defaults to node app name and version from package.json.
+* callback: callback function containing broker object for publish and subscribe
+
+
+## Usage patterns
+
+See "examples" folder.
 
 ### Publisher
 
 ```js
-var amqpConnection = require("exp-amqp-connection");
+var broker = require("exp-amqp-connection");
 
-var amqpBehaviour = {
-  exchange: "myExchange"
-};
+var amqpBehaviour = {exchange: "myExchange", errorHandler: error};
 
-amqpConnection("amqp://localhost", amqpBehaviour, function (connErr, conn) {
+broker("amqp://localhost", amqpBehaviour, function (connErr, conn) {
   if (connErr) return console.log("AMQP connect error", connErr);
-  conn.on("error", function (amqpErr) {
-    console.log("Uh-oh, amqp error: ", amqpErr);
+  conn.publish("data", "routingKey", function (err) {
+    console.log(
   });
-  conn.publish("data", "routingKey");
 });
+  
+function error(error) {
+  console.log("Broker error", error);
+}
 ```
 
-Your app will now use a single connection/channel for publishing to rabbit. In case the connection goes down messages will be queued and sent once the connection is up and running again.
+Your app will now use a single connection/channel for publishing to rabbit. In case of connection problems, you will get a new connection
+once the connection can be established again. 
 
 ### Subscriber (kill process on error)
 
-```js
-var amqpConnection = require("exp-amqp-connection");
-var amqpBehaviour = {reuse: "myKey", exchange: "myExchange", ack: "true"};
+Bind a queue to an exchange and subscribe to it. In case of errors, termintate the process.
 
-amqpConnection("amqp://user:password@localhost", function (err, conn) {
-  if (err) return console.log("AMQP connect error", err);
+This is the simplest and most robust way of dealing with lost connections and other amqp problems.
+However it presumes you hava a process manager (pm2, forever etc) in place to restart the process.
+
+```js
+var broker = require("exp-amqp-connection");
+var amqpBehaviour = {reuse: "myKey", exchange: "myExchange", ack: "true". errorHandler = error};
+
+broker("amqp://localhost", function (err, conn) {
+  if (err) return handleError(err);
   conn.subsribe("routingKey", "someQueue", function (message, meta, notify) {
     console.log("Got message", message, "with routing key", meta.routingKey);
     notify.ack();
   })
-});
+  });
+
+function handleError(err) {
+  console.log("Broker error, terminating process", err);
+  process.exit(1);
+}
+
 ```
 
-This is the simplest and most robust way of dealing with connection problems and other errors when using an amqp.connection. Ingore any "error" events from the amqp connection which will cause the process to crash. Then let your process manager (pm2, forever etc) restart the process.
 
 ### Subscriber (reconnect on error)
 
-
-If you do not wish to crash your app in case of amqp errors, you have to re-initilize the subscription in case of errors instead. This requires a few more lines of code:
+If you do not wish to crash your app in case of amqp errors, you have to re-initilize the subscription in case of errors instead.
+This requires a few more lines of code:
 
 ```js
-var amqpConnection = require("exp-amqp-connection");
+var broker = require("exp-amqp-connection");
 var amqpBehaviour = {exchange: "myExchange", ack: "true"};
 var resubTimer;
 
 function subscribe() {
-  amqpConnection("amqp://localhost", amqpBehaviour, function (err, conn) {
+  broker("amqp://localhost", amqpBehaviour, function (err, conn) {
     resubTimer = null;
     if (err) return handleError(err);
-    conn.on("error", handleError);
     conn.subscribe("routingKey", "someQueue", handleMessage, handleError);
   });
 }
@@ -75,7 +109,8 @@ function handleMessage(message, meta, notify) {
 }
 
 function handleError(err) {
-  if (err && !resubTimer) {
+if (!resubTimer) {
+    console.log("Broker error, resubscribing: ", err);
     resubTimer = setTimeout(subscribe, 1000);
   }
 }
@@ -83,6 +118,5 @@ function handleError(err) {
 subscribe();
 ```
 
-## API docs
 
-For now, UTSL :(
+

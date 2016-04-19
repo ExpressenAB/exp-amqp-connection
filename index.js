@@ -12,8 +12,7 @@ var defaultBehaviour = {
   ack: false,
   confirm: false,
   heartbeat: 10,
-  productName: getProductName(),
-  errorHandler: console.error
+  productName: getProductName()
 };
 
 var savedConns = {};
@@ -46,12 +45,12 @@ function doConnect(amqpUrl, behaviour, callback) {
   var urlObj = url.parse(amqpUrl);
   urlObj.search = qs.stringify(_.defaults(qs.parse(urlObj.search), {heartbeat: behaviour.heartbeat}));
   amqpUrl = url.format(urlObj);
-  var api = {
+  var api = _.extend(new EventEmitter(), {
     subscribe: subscribe,
     publish: publish,
     deleteQueue: deleteQueue,
     close: close
-  };
+  });
 
   var channel = null;
   var conn = null;
@@ -75,15 +74,15 @@ function doConnect(amqpUrl, behaviour, callback) {
       assertExchange(channel, behaviour.exchange);
       channel.on("close", function (why) {
         savedConns[behaviour.reuse] = null;
-        behaviour.errorHandler(why || "Connection closed unexpectedly");
+        handleError(why || "Connection closed unexpectedly");
       });
       channel.on("error", function (amqpError) {
         savedConns[behaviour.reuse] = null;
-        behaviour.errorHandler(amqpError);
+        handleError(amqpError);
       });
       conn.on("error", function (amqpError) {
         savedConns[behaviour.reuse] = null;
-        behaviour.errorHandler(amqpError);
+        handleError(amqpError);
       });
       reuse.emit("bootstrapped", null, api);
       reuse.api = api;
@@ -116,7 +115,7 @@ function doConnect(amqpUrl, behaviour, callback) {
           });
         });
         var amqpHandler = function (message) {
-          if (!message) return behaviour.errorHandler("Subscription cancelled");
+          if (!message) return handleError("Subscription cancelled");
           var ackFun = function () { subChannel.ack(message); };
           handler(decode(message), message, {ack: ackFun});
         };
@@ -139,6 +138,10 @@ function doConnect(amqpUrl, behaviour, callback) {
 
   function deleteQueue(queueName) {
     channel.deleteQueue(queueName);
+  }
+
+  function handleError(err) {
+    api.emit("error", err);
   }
 
   return api;
