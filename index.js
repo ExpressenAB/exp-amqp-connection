@@ -67,23 +67,21 @@ function doConnect(amqpUrl, behaviour, callback) {
       return callback(connErr);
     }
 
+    newConnection.on("error", function (amqpError) {
+      savedConns[behaviour.reuse] = null;
+      handleError(amqpError);
+    });
+
+    newConnection.on("close", function (why) {
+      savedConns[behaviour.reuse] = null;
+      handleError(why);
+    });
+
     conn = newConnection;
     var onChannel = function (channelErr, newChannel) {
       if (channelErr) return callback(channelErr);
       channel = newChannel;
       assertExchange(channel, behaviour.exchange);
-      channel.on("close", function (why) {
-        savedConns[behaviour.reuse] = null;
-        handleError(why || "Connection closed unexpectedly");
-      });
-      channel.on("error", function (amqpError) {
-        savedConns[behaviour.reuse] = null;
-        handleError(amqpError);
-      });
-      conn.on("error", function (amqpError) {
-        savedConns[behaviour.reuse] = null;
-        handleError(amqpError);
-      });
       reuse.emit("bootstrapped", null, api);
       reuse.api = api;
       return callback(null, api);
@@ -101,39 +99,31 @@ function doConnect(amqpUrl, behaviour, callback) {
   }
 
   function subscribe(routingKeyOrKeys, queueName, handler, subCallback) {
-    subCallback = subCallback || function () {};
     var routingKeys = Array.isArray(routingKeyOrKeys) ? routingKeyOrKeys : [routingKeyOrKeys];
     conn.createChannel(function (channelErr, subChannel) {
-      if (channelErr) return subCallback(channelErr);
       subChannel.prefetch(behaviour.prefetch);
       assertExchange(subChannel, behaviour.exchange);
-      subChannel.assertQueue(queueName, {}, function (queueErr) {
-        if (queueErr) return subCallback(queueErr);
-        routingKeys.forEach(function (key) {
-          subChannel.bindQueue(queueName, behaviour.exchange, key, {}, function (bindErr) {
-            if (bindErr) return subCallback(bindErr);
-          });
-        });
-        var amqpHandler = function (message) {
-          if (!message) return handleError("Subscription cancelled");
-          var ackFun = function () { subChannel.ack(message); };
-          handler(decode(message), message, {ack: ackFun});
-        };
-        var consumeOpts = {noAck: !behaviour.ack};
-        subChannel.consume(queueName, amqpHandler, consumeOpts, subCallback);
+      subChannel.assertQueue(queueName, {});
+      routingKeys.forEach(function (key) {
+        subChannel.bindQueue(queueName, behaviour.exchange, key, {});
       });
+      var amqpHandler = function (message) {
+        if (!message) return handleError("Subscription cancelled");
+        var ackFun = function () { subChannel.ack(message); };
+        handler(decode(message), message, {ack: ackFun});
+      };
+      var consumeOpts = {noAck: !behaviour.ack};
+      subChannel.consume(queueName, amqpHandler, consumeOpts, subCallback);
     });
   }
 
   function close(closeCallback) {
-    if (channel) {
-      channel.close();
-    }
     if (conn) {
       conn.close(closeCallback);
     } else {
       closeCallback();
     }
+    savedConns[behaviour.reuse] = null;
   }
 
   function deleteQueue(queueName) {
