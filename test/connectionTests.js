@@ -149,59 +149,12 @@ Feature("Bootstrapping", function () {
   });
 });
 
-/*
-Feature("Dead letter exchange", function () {
-Scenario("Publishing failed messages on dead letter exchange", function () {
-var message;
-var deadLetterExchangeName = "e1.dead";
-var behaviour = _.assign(defaultBehaviour, {
-deadLetterExchangeName: deadLetterExchangeName,
-subscribeOptions: {
-ack: true
-}
-});
-
-after(function (done) {
-killDeadLetter(behaviour.deadLetterExchangeName, function () {
-disconnect();
-done();
-});
-});
-And("We have a connection with a dead letter exchange", function (done) {
-connect(defaultUrl, behaviour, ignoreErrors(done));
-});
-And("We are listing to the dead letter exchange", function (done) {
-amqp(defaultUrl, {exchange: deadLetterExchangeName}, function (err, conn) {
-if (err) return done(err);
-conn.subscribe("#", "deadQ", function (msg) {
-message = msg;
-}, done);
-});
-});
-
-And("We reject all messages", function (done) {
-connection.subscribe("testRoutingKey", "TestQ3", function (msg, headers, deliveryInfo, ack) {
-ack.reject(false);
-}, done);
-});
-When("We publish a message", function (done) {
-connection.publish("testRoutingKey", {testData: "hello"}, done);
-});
-Then("The message should be in the dead letter queue", function (done) {
-setTimeout(function () {
-assert.equal(message.testData, "hello");
-done();
-}, 50);
-});
-});
-});
-*/
-
 function testConnection(done) {
   var randomRoutingKey = "RK" + crypto.randomBytes(6).toString("hex");
   connection.subscribe(randomRoutingKey, randomRoutingKey, function () {
     done();
-  }, function () {
+  }, function (err) {
+    if (err) return done(err);
     connection.publish(randomRoutingKey, "someMessage");
   });
 }
@@ -264,18 +217,6 @@ function killRabbitConnections() {
     connections.forEach(killRabbitConnection);
   });
 }
-
-/*
-function killDeadLetter(deadLetterExchangeName, done) {
-  var queueUrl = util.format("http://guest:guest@localhost:15672/api/queues/%2F/%s.deadLetterQueue", deadLetterExchangeName);
-  var exchangeUrl = util.format("http://guest:guest@localhost:15672/api/exchanges/%2F/%s", deadLetterExchangeName);
-
-  deleteResource(exchangeUrl, function (err) {
-    if (err) return done(err);
-    deleteResource(queueUrl, done);
-  });
-}
-*/
 
 function killRabbitConnection(conn) {
   deleteResource("http://guest:guest@localhost:15672/api/connections/" + conn.name, assert.ifError);
