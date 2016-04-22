@@ -6,12 +6,12 @@
 var bootstrap = require("exp-amqp-connection");
 
 var amqpBehaviour = {
-  exchange: "myExchange"
+  exchange: "my-exchange"
 };
 
 bootstrap("amqp://localhost", amqpBehaviour, function (err, broker) {
   if (err) return console.log(err);
-  broker.subscribe("routing-key-pattern", undefined, handleMessage);
+  broker.subscribe("some-routing-key", undefined, handleMessage);
 });
 
 function handleMessage(message) {

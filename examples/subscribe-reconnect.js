@@ -7,7 +7,7 @@ var bootstrap = require("exp-amqp-connection");
 var resubTimer;
 
 var amqpBehaviour = {
-  exchange: "myExchange",
+  exchange: "my-excchange",
   ack: "true" // We want ack our messages during subscribe
 };
 
@@ -16,21 +16,21 @@ function subscribe() {
   bootstrap("amqp://localhost", amqpBehaviour, function (err, broker) {
     if (err) return handleError(err);
     broker.on("error", handleError);
-    broker.subscribe([], "someQueue", handleMessage, handleError);
+    broker.subscribe("some-routing-key", "some-queue", handleMessage, handleError);
   });
 }
 
 function handleMessage(message, meta, notify) {
-  console.log("Got message", message, "with routing key", meta.routingKey);
+  console.log("Got message", message, "with routing key", meta.fields.routingKey);
   notify.ack();
 }
 
 function handleError(err) {
   if (err) {
-    console.log("Re-subscribing due to amqp error:", err);
-    // Sleep 5 seconds before trying to subsribe again.
-    // Also ensure that we don't have a resubscribe pending already.
+    // Ensure that we don't have a resubscribe pending already.
     if (!resubTimer) {
+      // Sleep 5 seconds before trying to subsribe again.
+      console.log("Re-subscribing due to amqp error:", err);
       resubTimer = setTimeout(subscribe, 5000);
     }
   }

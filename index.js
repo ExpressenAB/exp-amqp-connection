@@ -104,7 +104,7 @@ function doConnect(amqpUrl, behaviour, callback) {
     conn.createChannel(function (channelErr, subChannel) {
       subChannel.prefetch(behaviour.prefetch);
       assertExchange(subChannel, behaviour.exchange);
-      subChannel.assertQueue(queueName, {durable: !!queueName, autoDelete: !queueName}, console.log);
+      subChannel.assertQueue(queueName, {durable: !!queueName, autoDelete: !queueName});
       routingKeys.forEach(function (key) {
         subChannel.bindQueue(queueName, behaviour.exchange, key, {});
       });

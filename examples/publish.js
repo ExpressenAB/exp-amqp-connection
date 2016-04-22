@@ -7,9 +7,13 @@ var amqpBehaviour = {
   confirm: true // Enables callback as last parameter to the publish functions
 };
 
-bootstrap("amqp://localhost", amqpBehaviour, function (connErr, conn) {
-  if (connErr) return console.log("AMQP connect error", connErr);
-  conn.publish("some-routing-key", "Hello", function (err) {
-    if (err) console.error("Amqp server failed to deliver message");
+function publish() {
+  bootstrap("amqp://localhost", amqpBehaviour, function (connErr, broker) {
+    if (connErr) return console.log("AMQP connect error", connErr);
+    broker.publish("some-routing-key", "Hello " + new Date(), function (err) {
+      if (err) console.error("Amqp server failed to deliver message");
+    });
   });
-});
+}
+
+setInterval(publish, 1000);

@@ -8,16 +8,16 @@
 var bootstrap = require("exp-amqp-connection");
 
 var amqpBehaviour = {
-  exchange: "myExchange",
+  exchange: "my-exchange",
   ack: "true" // We want ack our messages during subscribe (see below)
 };
 
 bootstrap("amqp://localhost", amqpBehaviour, function (err, broker) {
   if (err) return console.log(err);
-  broker.subscribe([], "someQueue", handleMessage);
+  broker.subscribe("some-routing-key", "some-queue", handleMessage);
 });
 
 function handleMessage(message, meta, notify) {
-  console.log("Got message", message, "with routing key", meta.routingKey);
+  console.log("Got message", message, "with routing key", meta.fields.routingKey);
   notify.ack();
 }
