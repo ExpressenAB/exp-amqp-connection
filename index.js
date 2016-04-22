@@ -61,6 +61,7 @@ function doConnect(amqpUrl, behaviour, callback) {
 
   var opts = {clientProperties: {product: behaviour.productName}};
   amqp.connect(amqpUrl, opts, function (connErr, newConnection) {
+
     if (connErr) {
       savedConns[behaviour.reuse] = null;
       reuse.emit("bootstrapped", connErr);
@@ -103,7 +104,7 @@ function doConnect(amqpUrl, behaviour, callback) {
     conn.createChannel(function (channelErr, subChannel) {
       subChannel.prefetch(behaviour.prefetch);
       assertExchange(subChannel, behaviour.exchange);
-      subChannel.assertQueue(queueName, {});
+      subChannel.assertQueue(queueName, {durable: !!queueName, autoDelete: !queueName}, console.log);
       routingKeys.forEach(function (key) {
         subChannel.bindQueue(queueName, behaviour.exchange, key, {});
       });

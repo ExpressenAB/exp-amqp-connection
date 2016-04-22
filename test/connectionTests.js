@@ -48,12 +48,12 @@ Feature("Connect", function () {
     });
     Then("The connection should work", testConnection);
   });
-
 });
 
 var pubTests = [
-  {type: "string", data: "Hello"},
-  {type: "object", data: {greeting: "Hello"}}
+  {type: "buffer", data: new Buffer("Hello"), result: "Hello"},
+  {type: "string", data: "Hello", result: "Hello"},
+  {type: "object", data: {greeting: "Hello"}, result: {greeting: "Hello"}}
 ];
 
 pubTests.forEach(function (test) {
@@ -72,7 +72,7 @@ pubTests.forEach(function (test) {
       connection.publish("testRoutingKey", test.data, done);
     });
     Then("It should arrive correctly", function () {
-      assert.deepEqual(test.data, recieved);
+      assert.deepEqual(test.result, recieved);
     });
   });
 });
@@ -100,6 +100,48 @@ Scenario("Multiple routing keys", function () {
   });
   Then("It should be delivered once", function () {
     assert.deepEqual(messages, ["m1", "m2"]);
+  });
+});
+
+Scenario("Default exchange", function () {
+  var queueName = "some-test-queue";
+  var message;
+
+  after(disconnect);
+
+  When("Connect without specifying an exchange", function (done) {
+    var defaultExchangeBehaviour = _.extend({}, defaultBehaviour, {exchange: "", reuse: "default-exchange"});
+    connect(defaultUrl, defaultExchangeBehaviour, ignoreErrors(done));
+  });
+
+  And("We start subscription without routing keys", function (done) {
+    connection.subscribe([], queueName, function (msg) { message = msg; }, done);
+  });
+  And("We publish using queue name", function (done) {
+    connection.publish(queueName, "Hello", done);
+  });
+
+  Then("The message should have been delivered", function () {
+    assert.equal("Hello", message);
+  });
+});
+
+Scenario("Pubsub using tmp queue", function () {
+  after(disconnect);
+  var recieved;
+  And("We have a connection", function (done) {
+    connect(defaultUrl, defaultBehaviour, ignoreErrors(done));
+  });
+  And("We create a subscription without specifying a queue name", function (done) {
+    connection.subscribe("testRoutingKey", undefined, function (msg) {
+      recieved = msg;
+    }, done);
+  });
+  And("We publish a message", function (done) {
+    connection.publish("testRoutingKey", "Hi there!", done);
+  });
+  Then("It should arrive correctly", function () {
+    assert.deepEqual("Hi there!", recieved);
   });
 });
 
