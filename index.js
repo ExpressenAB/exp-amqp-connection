@@ -43,7 +43,8 @@ function attemptReuse(key, callback) {
 
 function doConnect(amqpUrl, behaviour, callback) {
   var urlObj = url.parse(amqpUrl);
-  urlObj.search = qs.stringify(_.defaults(qs.parse(urlObj.search), {heartbeat: behaviour.heartbeat}));
+  urlObj.search =
+    qs.stringify(_.defaults(qs.parse(urlObj.search), {heartbeat: behaviour.heartbeat}));
   amqpUrl = url.format(urlObj);
   var api = _.extend(new EventEmitter(), {
     subscribe: subscribe,
@@ -94,9 +95,9 @@ function doConnect(amqpUrl, behaviour, callback) {
     }
   });
 
-  function publish(routingKey, message, pubCallback) {
+  function publish(routingKey, message, callback) {
     var encodedMsg = encode(message);
-    channel.publish(behaviour.exchange, routingKey, encodedMsg.buffer, encodedMsg.props, pubCallback);
+    channel.publish(behaviour.exchange, routingKey, encodedMsg.buffer, encodedMsg.props, callback);
   }
 
   function subscribe(routingKeyOrKeys, queueName, handler, subCallback) {
@@ -104,7 +105,8 @@ function doConnect(amqpUrl, behaviour, callback) {
     conn.createChannel(function (channelErr, subChannel) {
       subChannel.prefetch(behaviour.prefetch);
       assertExchange(subChannel, behaviour.exchange);
-      subChannel.assertQueue(queueName, {durable: !!queueName, autoDelete: !queueName});
+      var queueOpts = {durable: !!queueName, autoDelete: !queueName, exclusive: !queueName};
+      subChannel.assertQueue(queueName, queueOpts);
       routingKeys.forEach(function (key) {
         subChannel.bindQueue(queueName, behaviour.exchange, key, {});
       });
