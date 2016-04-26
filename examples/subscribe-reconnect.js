@@ -26,13 +26,10 @@ function handleMessage(message, meta, notify) {
 }
 
 function handleError(err) {
-  if (err) {
-    // Ensure that we don't have a resubscribe pending already.
-    if (!resubTimer) {
+  if (err && !resubTimer) {
       // Sleep 5 seconds before trying to subsribe again.
       console.log("Re-subscribing due to amqp error:", err);
       resubTimer = setTimeout(subscribe, 5000);
-    }
   }
 }
 
