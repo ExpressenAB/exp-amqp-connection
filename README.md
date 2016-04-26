@@ -10,7 +10,7 @@ This library is intended for doing simple publish and subscribe to an amqp broke
 - Hides underlying amqp details as much as possible.
 - Tries to maintain amqp best practices such as: separate channels for subscriptions and publishing, consumer cancel notifications, confirm channels, heartbeats etc.
 - Optimized for simple apps with a handful of subscriptions.
-consider a library more closely attached to the amqp protocol such as https://www.npmjs.com/package/amqplib
+For heavy-duty messaging, consider a library more closely attached to the amqp protocol such as https://www.npmjs.com/package/amqplib
 
 Limitations:
 
