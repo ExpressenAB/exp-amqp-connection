@@ -40,7 +40,7 @@ bootstrap("amqp://localhost", {}, callback(err, broker) {
   * confirm: whether or not to use confirm mode for publishing. If enabled, a callback can be added to the publish call to see if the publish was successful or not. Default to false.
   * heartbeat. Send heartbeats at regular intervals to ensure that the server is reachable. Defaults to 10 seconds. Set to 0 to disable heartbeats.
   * productName: will show up in the admin interface for the connection. Great for debugging purpouses. Defaults to node app name and version from package.json.
-  * reuse: key for connection re-use. Set to null if you want a new connection to rabbit each time.
+  * reuse: key for connection re-use. Set to null if you want a new connection to rabbit for each call.
 * callback: callback function providing broker object. See "examples" folder for API.
 
 ### Broker object
