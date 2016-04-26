@@ -26,6 +26,7 @@ Exposes a single function used for boostrapping a broker object that can be used
 var bootstrap = require("exp-amqp-connection");
 var behaviour = {exchange: "my-exchange"};
 bootstrap("amqp://localhost", {}, callback(err, broker) {
+   if (err) return consol.log("Failed to initialize broker!", err);
    broker.publish("someRoutingKey", "Some message");
 });
 ```
