@@ -19,6 +19,10 @@ broker.on("connected", function () {
   console.log("Connected to amqp server");
 });
 
+broker.on("subscribed", function (subscription) {
+  console.log("Subscription started:", subscription);
+});
+
 function handleMessage(message, meta, notify) {
   console.log("Got message", message, "with routing key", meta.fields.routingKey);
   notify.ack();
