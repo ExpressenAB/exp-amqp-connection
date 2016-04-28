@@ -16,7 +16,7 @@ function init(behaviour) {
 
 function shutdown(broker, done) {
   broker.removeAllListeners("error");
-  broker.on("error", function (err) {});
+  broker.on("error", function () {});
   broker.shutdown(done);
 }
 
@@ -152,7 +152,6 @@ Scenario("Multiple subscriptions", function () {
     assert.deepEqual(messages, ["m1", "m1", "m2"]);
   });
 });
-
 
 Scenario("Pubsub using tmp queue", function () {
   var recieved;
