@@ -1,19 +1,22 @@
 "use strict";
 
-var bootstrap = require("exp-amqp-connection");
+var init = require("exp-amqp-connection");
 
 var amqpBehaviour = {
+  url: "amqp://localhost",
   exchange: "my-exchange",
   confirm: true // Enables callback as last parameter to the publish functions
 };
 
-function publish() {
-  bootstrap("amqp://localhost", amqpBehaviour, function (connErr, broker) {
-    if (connErr) return console.log("AMQP connect error", connErr);
-    broker.publish("some-routing-key", "Hello " + new Date(), function (err) {
-      if (err) console.error("Amqp server failed to deliver message");
-    });
-  });
-}
+var broker = init(amqpBehaviour);
 
-setInterval(publish, 1000);
+broker.on("connected", function () {
+  console.log("Connected to amqp server");
+});
+
+broker.publish("some-routing-key", "Hello " + new Date(), function (err) {
+  if (err) return console.log("Amqp server failed to deliver message");
+  console.log("Message delivered.");
+  broker.shutdown();
+});
+

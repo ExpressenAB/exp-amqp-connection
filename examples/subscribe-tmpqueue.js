@@ -1,19 +1,29 @@
 "use strict";
 
-// Omit the queue name when subscribing to get a temporary queue which will
+// Subscribe with temporary queue which will
 // be deleted once the amqp connection is lost.
 
-var bootstrap = require("exp-amqp-connection");
+var init = require("exp-amqp-connection");
 
 var amqpBehaviour = {
-  exchange: "my-exchange"
+  url: "amqp://localhost",
+  exchange: "my-excchange",
+  ack: "true"
 };
 
-bootstrap("amqp://localhost", amqpBehaviour, function (err, broker) {
-  if (err) return console.log(err);
-  broker.subscribe("some-routing-key", undefined, handleMessage);
+var broker = init(amqpBehaviour);
+
+broker.on("connected", function () {
+  console.log("Connected to amqp server");
 });
 
-function handleMessage(message) {
-  console.log("Got message", message);
+function handleMessage(message, meta, notify) {
+  console.log("Got message", message, "with routing key", meta.fields.routingKey);
+  notify.ack();
 }
+
+broker.subscribeTmp("some-routing-key", handleMessage);
+
+setInterval(function () {
+  broker.publish("some-routing-key", "Hello " + new Date());
+}, 1000);
