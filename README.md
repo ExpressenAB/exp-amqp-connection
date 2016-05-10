@@ -55,7 +55,7 @@ The following options are accepted:
 
 ### API
 
-The return broker object has the following functions:
+The return broker object has the following functions. See the [exmaples](examples) for more info on parameters etc.
 
 #### publish(routingKey, message, callback)
 
@@ -66,6 +66,8 @@ The return broker object has the following functions:
 Subscribe using nameless tmp queue. Queue will be destroyed when the broker disconnects.
 
 #### shutdown(callback)
+
+Shuts down connection to broker.
 
 #### events
 
