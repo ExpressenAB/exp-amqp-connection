@@ -7,9 +7,9 @@
     "Jens Carlén",
     "Pål Edman"
   ],
-  "version": "1.3.3",
+  "version": "2.0.0-beta.4",
   "scripts": {
-    "test": "NODE_ENV=test mocha -t 5000 && jshint ."
+    "test": "NODE_ENV=test mocha -t 5000 && eslint ."
   },
   "repository": "git://github.com/ExpressenAB/exp-amqp-connection.git",
   "keywords": [
@@ -22,15 +22,15 @@
   },
   "main": "index.js",
   "dependencies": {
-    "amqp": "^0.2.4"
+    "amqplib": "^0.4.1",
+    "lodash": "^4.8.2"
   },
   "devDependencies": {
     "async": "^0.9.0",
     "chai": "^2.1.1",
-    "coffee-script": "^1.9.1",
-    "jshint": "^2.6.3",
+    "eslint": "^2.6.3",
     "mocha": "^2.2.1",
-    "mocha-cakes": "^0.9.0",
+    "mocha-cakes-2": "^1.1.1",
     "request": "^2.53.0"
   }
 }

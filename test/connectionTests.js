@@ -1,232 +1,239 @@
 "use strict";
 
+/* eslint no-undef: 0, new-cap: 0 */
+
 var request = require("request");
 var amqp = require("../index.js");
-var crypto = require("crypto");
 var assert = require("assert");
 var async = require("async");
-var util = require("util");
-var extend = require("../extend");
+var _ = require("lodash");
 
-var defaultBehaviour = {exchange: "e1", logger: console, consumerCancelNotification: true};
-var defaultConnOpts = {};
-var connection;
+var defaultBehaviour = {exchange: "e1", confirm: true, url: "amqp://localhost"};
+
+function init(behaviour) {
+  return amqp(behaviour);
+}
+
+function shutdown(broker, done) {
+  broker.removeAllListeners("error");
+  broker.on("error", function () {});
+  broker.shutdown(done);
+}
 
 Feature("Connect", function () {
 
   Scenario("Ok connection", function () {
-    after(disconnect);
-    When("Trying to connect to default port", function () {
-      // Noopt
+    var broker;
+    after(function (done) { shutdown(broker, done); });
+    When("Connecting to default port", function () {
+      broker = init(defaultBehaviour);
     });
-    Then("We should bet able to connect", function (done) {
-      connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
+    Then("The connection should be ok", function (done) {
+      broker.publish("foobar", "foobar", done);
     });
-    And("The connection should be ok", testConnection);
-
   });
 
   Scenario("Bad connection", function () {
-    after(disconnect);
+    var broker;
+    var badPortBehaviour;
+    after(function (done) { shutdown(broker, done); });
     When("Trying to connect to bad port", function () {
+      badPortBehaviour = _.extend({}, defaultBehaviour, {reuse: "bad-port", url: "amqp://localhost:6666"});
     });
     Then("We should get an error", function (done) {
-      connect({port: 9999}, extend(defaultBehaviour, {logger: null}), ensureErrors(done));
+      broker = init(badPortBehaviour);
+      broker.once("error", function () {
+        done();
+      });
+      broker.publish("test", "Message");
     });
   });
 
-  Scenario("Reconnect", function () {
-    after(disconnect);
-    And("We have a connection", function (done) {
-      connect(defaultConnOpts, extend(defaultBehaviour, {logger: null}), ignoreErrors(done));
+  Scenario("Disconnect with reuse", function () {
+    var broker;
+    after(function (done) { shutdown(broker, done); });
+    When("We have a connection", function () {
+      broker = amqp(defaultBehaviour);
     });
     And("And we kill all rabbit connections", killRabbitConnections);
-    Then("The connection should be ok", testConnection);
+    And("We sleep a while", function (done) { setTimeout(done, 500); });
+    Then("We can use the broker again", function (done) {
+      broker.publish("bogus", "Hello", done);
+    });
   });
-
 });
 
-Feature("Pubsub", function () {
-  Scenario("Ok pubsub", function () {
-    var message;
-    after(disconnect);
-    And("We have a connection", function (done) {
-      connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
+var pubTests = [
+  {type: "buffer", data: new Buffer("Hello"), result: "Hello"},
+  {type: "string", data: "Hello", result: "Hello"},
+  {type: "object", data: {greeting: "Hello"}, result: {greeting: "Hello"}}
+];
+
+pubTests.forEach(function (test) {
+  Scenario("Pubsub with " + test.type + " message", function () {
+    var broker;
+    var recieved;
+    after(function (done) { shutdown(broker, done); });
+    And("We have a connection", function () {
+      broker = init(defaultBehaviour);
     });
     And("We create a subscription", function (done) {
-      connection.subscribe("testRoutingKey", "testQ1", function (msg) {
-        message = msg;
+      broker.subscribeTmp("testRoutingKey", function (msg) {
+        recieved = msg;
       }, done);
     });
     And("We publish a message", function (done) {
-      connection.publish("testRoutingKey", {testData: "hello"}, done);
+      broker.publish("testRoutingKey", test.data, done);
     });
     Then("It should arrive correctly", function () {
-      assert.equal(message.testData, "hello");
-    });
-  });
-
-  Scenario("Multiple routing keys", function () {
-    var messages = [];
-    var handler = function (message) { messages.push(message.testData); };
-    after(disconnect);
-    When("We have a connection", function (done) {
-      connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
-    });
-    And("We create a subscription for routing key 1 and 2", function (done) {
-      connection.subscribe(["rk1", "rk2"], "testQ1", handler, done);
-    });
-    When("We publish a message with routing key 1", function (done) {
-      connection.publish("rk1", {testData: "m1"}, done);
-    });
-    Then("It should be delivered once", function () {
-      assert.deepEqual(["m1"], messages);
-    });
-    When("We publish a message with routing key 2", function (done) {
-      connection.publish("rk2", {testData: "m2"}, done);
-    });
-    Then("It should be delivered once", function () {
-      assert.deepEqual(messages, ["m1", "m2"]);
-    });
-  });
-
-  Scenario("Cancelled sub", function () {
-    var message;
-    after(disconnect);
-    And("We have a connection", function (done) {
-      connect(defaultConnOpts, defaultBehaviour, ignoreErrors(done));
-    });
-    And("We create a subscription", function (done) {
-      connection.subscribe("testRoutingKey", "testQ2", function (msg) {
-        message = msg;
-      }, done);
-    });
-    And("We delete the queue", function (done) {
-      deleteRabbitQueue("testQ2", done);
-    });
-    And("We wait a little", function (done) {setTimeout(done, 3000);});
-    And("We publish a message", function (done) {
-      connection.publish("testRoutingKey", {testData: "hello"}, done);
-    });
-    Then("It should arrive correctly", function () {
-      assert.equal(message.testData, "hello");
+      assert.deepEqual(test.result, recieved);
     });
   });
 });
 
-Feature("Dead letter exchange", function () {
-  Scenario("Publishing failed messages on dead letter exchange", function () {
-    var message;
-    var deadLetterExchangeName = "e1.dead";
-    var behaviour = extend(defaultBehaviour, {
-      deadLetterExchangeName: deadLetterExchangeName,
-      subscribeOptions: {
-        ack: true
-      }
-    });
-
-    after(function (done) {
-      killDeadLetter(behaviour.deadLetterExchangeName, function () {
-        disconnect();
-        done();
-      });
-    });
-    And("We have a connection with a dead letter exchange", function (done) {
-      connect(defaultConnOpts, behaviour, ignoreErrors(done));
-    });
-    And("We are listing to the dead letter exchange", function (done) {
-      amqp(defaultConnOpts, {exchange: deadLetterExchangeName}, function (err, conn) {
-        if (err) return done(err);
-        conn.subscribe("#", "deadQ", function (msg) {
-          message = msg;
-        }, done);
-      });
-    });
-
-    And("We reject all messages", function (done) {
-      connection.subscribe("testRoutingKey", "TestQ3", function (msg, headers, deliveryInfo, ack) {
-        ack.reject(false);
-      }, done);
-    });
-    When("We publish a message", function (done) {
-      connection.publish("testRoutingKey", {testData: "hello"}, done);
-    });
-    Then("The message should be in the dead letter queue", function (done) {
-      setTimeout(function () {
-        assert.equal(message.testData, "hello");
-        done();
-      }, 50);
-    });
-
+Scenario("Multiple routing keys", function () {
+  var messages = [];
+  var broker;
+  var handler = function (message) {
+    messages.push(message.testData);
+  };
+  after(function (done) { shutdown(broker, done); });
+  When("We have a connection", function () {
+    broker = init(defaultBehaviour);
+  });
+  And("We create a subscription for routing key 1 and 2", function (done) {
+    broker.subscribe(["rk1", "rk2"], "testQ2", handler, done);
+  });
+  When("We publish a message with routing key 1", function (done) {
+    broker.publish("rk1", {testData: "m1"}, done);
+  });
+  Then("It should be delivered once", function () {
+    assert.deepEqual(["m1"], messages);
+  });
+  When("We publish a message with routing key 2", function (done) {
+    broker.publish("rk2", {testData: "m2"}, done);
+  });
+  Then("It should be delivered once", function () {
+    assert.deepEqual(messages, ["m1", "m2"]);
   });
 });
 
-function testConnection(done) {
-  var randomRoutingKey = "RK" + crypto.randomBytes(6).toString("hex");
-  connection.subscribe(randomRoutingKey, randomRoutingKey, function () {
-    done();
-  }, function () {
-    connection.publish(randomRoutingKey, "someMessage");
+
+Scenario("Multiple subscriptions", function () {
+  var messages = [];
+  var broker;
+  var handler = function (message) {
+    messages.push(message);
+  };
+  after(function (done) { shutdown(broker, done); });
+  When("We have a connection", function () {
+    broker = init(defaultBehaviour);
   });
-}
+  And("We create a subscription with routing key 1", function (done) {
+    broker.subscribe(["k1"], "testQ-1", handler, done);
+  });
+  And("We create another subscription qith routing key 1", function (done) {
+      broker.subscribe(["k1"], "testQ-2", handler, done);
+  });
+  And("We create a subscription with routing key 2", function (done) {
+    broker.subscribe(["k2"], "testQ-3", handler, done);
+  });
 
-function ensureErrors(callback) {
-  return function (err) {
-    if (err) {
-      callOnce(callback);
-    }
-  };
-}
+  When("We publish a message with key 1", function (done) {
+    broker.publish("k1", "m1", done);
+  });
+  Then("It should be delivered twice", function () {
+    assert.deepEqual(["m1", "m1"], messages);
+  });
+  When("We publish a message with routing key 2", function (done) {
+    broker.publish("k2", "m2", done);
+  });
+  Then("It should be delivered once", function () {
+    assert.deepEqual(messages, ["m1", "m1", "m2"]);
+  });
+});
 
-function ignoreErrors(callback) {
-  return function (err) {
-    if (!err) {
-      callOnce(callback);
-    }
-  };
-}
+Scenario("Pubsub using tmp queue", function () {
+  var recieved;
+  var broker;
+  after(function (done) { shutdown(broker, done); });
+  When("We have a connection", function () {
+    broker = init(defaultBehaviour);
+  });
+  And("We create a subscription without specifying a queue name", function (done) {
+    broker.subscribeTmp("testRoutingKey", function (msg) {
+      recieved = msg;
+    }, done);
+  });
+  And("We publish a message", function (done) {
+    broker.publish("testRoutingKey", "Hi there!", done);
+  });
+  Then("It should arrive correctly", function () {
+    assert.deepEqual("Hi there!", recieved);
+  });
+});
 
-function callOnce(callback) {
-  if (callback && !callback.alreadyCalled) {
-    callback.alreadyCalled = true;
-    callback();
-  }
-}
+Scenario("Cancelled sub", function () {
+  var broker;
+  var error;
+  after(function (done) { shutdown(broker, done); });
+  When("We have a connection", function () {
+    broker = amqp(defaultBehaviour);
+  });
 
-function connect(opts, behaviour, callback) {
-  connection = amqp(opts, behaviour, callback);
-}
+  And("We create a subscription", function (done) {
+    broker.on("error", function (err) {
+      error = err;
+    });
+    broker.subscribe("testRoutingKey", "testQ2", function () {}, done);
+  });
+  And("We delete the queue", function (done) {
+    deleteRabbitQueue("testQ2", done);
+  });
+  Then("An error should be raised", function () {
+    assert.equal("Subscription cancelled", error);
+  });
+});
 
-function disconnect(done) {
-  if (connection) connection.close(done);
-}
+Feature("Bootstrapping", function () {
+  var broker;
+  before(killRabbitConnections);
+  after(function (done) { shutdown(broker, done); });
+  When("Connect to the borker", function () {
+    broker = amqp(defaultBehaviour);
+  });
+  And("We use it a ton of times", function (done) {
+    var i = 0;
+    async.whilst(
+      function () { return i++ < 100; },
+      function (cb) { broker.publish("bogus", "bogus", cb); },
+      done);
+  });
+  Then("Only one actual connection should be created", function (done) {
+    getRabbitConnections(function (err, conns) {
+      if (err) return done(err);
+      assert.equal(1, conns.length);
+      done();
+    });
+  });
+});
 
 function getRabbitConnections(callback) {
   request.get("http://guest:guest@localhost:15672/api/connections",
-    function (err, resp, connections) {
-      callback(err, JSON.parse(connections));
-    });
+  function (err, resp, connections) {
+    callback(err, JSON.parse(connections));
+  });
 }
 
-function killRabbitConnections(done) {
+function killRabbitConnections() {
   getRabbitConnections(function (err, connections) {
-    if (err) return done(err);
-    async.each(connections, killRabbitConnection, done);
+    if (err) assert(false, err);
+    connections.forEach(killRabbitConnection);
   });
 }
 
-function killDeadLetter(deadLetterExchangeName, done) {
-  var queueUrl = util.format("http://guest:guest@localhost:15672/api/queues/%2F/%s.deadLetterQueue", deadLetterExchangeName);
-  var exchangeUrl = util.format("http://guest:guest@localhost:15672/api/exchanges/%2F/%s", deadLetterExchangeName);
-
-  deleteResource(exchangeUrl, function (err) {
-    if (err) return done(err);
-    deleteResource(queueUrl, done);
-  });
-}
-
-function killRabbitConnection(connection, done) {
-  deleteResource("http://guest:guest@localhost:15672/api/connections/" + connection.name, done);
+function killRabbitConnection(conn) {
+  deleteResource("http://guest:guest@localhost:15672/api/connections/" + conn.name, assert.ifError);
 }
 
 function deleteRabbitQueue(queue, done) {
