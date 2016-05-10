@@ -9,7 +9,7 @@
   ],
   "version": "2.0.0-beta.4",
   "scripts": {
-    "test": "NODE_ENV=test mocha -t 5000 && jshint ."
+    "test": "NODE_ENV=test mocha -t 5000 && eslint ."
   },
   "repository": "git://github.com/ExpressenAB/exp-amqp-connection.git",
   "keywords": [

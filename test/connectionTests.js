@@ -21,10 +21,10 @@ function shutdown(broker, done) {
 }
 
 Feature("Connect", function () {
-  
+
   Scenario("Ok connection", function () {
     var broker;
-    after((done) => shutdown(broker, done));
+    after(function (done) { shutdown(broker, done); });
     When("Connecting to default port", function () {
       broker = init(defaultBehaviour);
     });
@@ -36,7 +36,7 @@ Feature("Connect", function () {
   Scenario("Bad connection", function () {
     var broker;
     var badPortBehaviour;
-    after((done) => shutdown(broker, done));
+    after(function (done) { shutdown(broker, done); });
     When("Trying to connect to bad port", function () {
       badPortBehaviour = _.extend({}, defaultBehaviour, {reuse: "bad-port", url: "amqp://localhost:6666"});
     });
@@ -51,7 +51,7 @@ Feature("Connect", function () {
 
   Scenario("Disconnect with reuse", function () {
     var broker;
-    after((done) => shutdown(broker, done));
+    after(function (done) { shutdown(broker, done); });
     When("We have a connection", function () {
       broker = amqp(defaultBehaviour);
     });
@@ -72,8 +72,8 @@ var pubTests = [
 pubTests.forEach(function (test) {
   Scenario("Pubsub with " + test.type + " message", function () {
     var broker;
-    var recieved;   
-    after((done) => shutdown(broker, done));
+    var recieved;
+    after(function (done) { shutdown(broker, done); });
     And("We have a connection", function () {
       broker = init(defaultBehaviour);
     });
@@ -97,7 +97,7 @@ Scenario("Multiple routing keys", function () {
   var handler = function (message) {
     messages.push(message.testData);
   };
-  after((done) => shutdown(broker, done));
+  after(function (done) { shutdown(broker, done); });
   When("We have a connection", function () {
     broker = init(defaultBehaviour);
   });
@@ -125,7 +125,7 @@ Scenario("Multiple subscriptions", function () {
   var handler = function (message) {
     messages.push(message);
   };
-  after((done) => shutdown(broker, done));
+  after(function (done) { shutdown(broker, done); });
   When("We have a connection", function () {
     broker = init(defaultBehaviour);
   });
@@ -156,7 +156,7 @@ Scenario("Multiple subscriptions", function () {
 Scenario("Pubsub using tmp queue", function () {
   var recieved;
   var broker;
-  after((done) => shutdown(broker, done));
+  after(function (done) { shutdown(broker, done); });
   When("We have a connection", function () {
     broker = init(defaultBehaviour);
   });
@@ -176,7 +176,7 @@ Scenario("Pubsub using tmp queue", function () {
 Scenario("Cancelled sub", function () {
   var broker;
   var error;
-  after(() => shutdown(broker));
+  after(function (done) { shutdown(broker, done); });
   When("We have a connection", function () {
     broker = amqp(defaultBehaviour);
   });
@@ -198,7 +198,7 @@ Scenario("Cancelled sub", function () {
 Feature("Bootstrapping", function () {
   var broker;
   before(killRabbitConnections);
-  after(() => shutdown(broker));
+  after(function (done) { shutdown(broker, done); });
   When("Connect to the borker", function () {
     broker = amqp(defaultBehaviour);
   });

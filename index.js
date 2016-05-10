@@ -39,7 +39,9 @@ function init(behaviour) {
         });
         var amqpHandler = function (message) {
           if (!message) return handleSubscribeError("Subscription cancelled");
-          var ackFun = function () { subChannel.ack(message); };
+          var ackFun = function () {
+            subChannel.ack(message);
+          };
           handler(transform.decode(message), message, {ack: ackFun});
         };
         var consumeOpts = {noAck: !behaviour.ack};
