@@ -28,10 +28,9 @@
   "devDependencies": {
     "async": "^0.9.0",
     "chai": "^2.1.1",
-    "coffee-script": "^1.9.1",
-    "jshint": "^2.6.3",
+    "eslint": "^2.6.3",
     "mocha": "^2.2.1",
-    "mocha-cakes": "^0.9.0",
+    "mocha-cakes-2": "^1.1.1",
     "request": "^2.53.0"
   }
 }

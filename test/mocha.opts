@@ -1,3 +1,2 @@
---require mocha-cakes
---compilers coffee:coffee-script/register
+--require mocha-cakes-2
 --timeout 10000
