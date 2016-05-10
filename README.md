@@ -21,7 +21,7 @@ Limitations:
 
 ## Api
 
-Exposes a single function used for boostrapping a broker object that can be used for publishing and consuming messages.
+Exposes a single function that boostraps a broker object, which in turn can be used for publishing and consuming messages.
 For example:
 
 ```js
@@ -55,7 +55,7 @@ The following options are accepted:
 
 ### API
 
-The return broker object has the following functions. See the [exmaples](examples) for more info on parameters etc.
+The broker object returned by has the following functions. See the [exmaples](examples) for more info on parameters etc.
 
 #### publish(routingKey, message, callback)
 
