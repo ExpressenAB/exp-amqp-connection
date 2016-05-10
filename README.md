@@ -55,7 +55,7 @@ The following options are accepted:
 
 ### API
 
-The broker object returned has the following functions. See the [exmaples](examples) for more info on parameters etc.
+The broker object returned has the following functions. See the [examples](examples) for more info on parameters etc.
 
 #### publish(routingKey, message, callback)
 
