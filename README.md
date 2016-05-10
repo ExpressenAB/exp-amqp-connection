@@ -53,7 +53,7 @@ The following options are accepted:
 * productName: will show up in the admin interface for the connection. Great for debugging purpouses. Defaults to node app name and version from package.json.
 * reuse: key for connection re-use.
 
-### API
+### Broker
 
 The broker object returned has the following functions. See the [examples](examples) for more info on parameters etc.
 
