@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/ExpressenAB/exp-amqp-connection.svg?branch=master)](https://travis-ci.org/ExpressenAB/exp-amqp-connection)
 
-## Purpouse and features
+## Purpose and features
 
 This library is intended for doing simple publish and subscribe to an amqp broker.
 
