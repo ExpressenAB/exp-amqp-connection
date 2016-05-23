@@ -51,6 +51,7 @@ The following options are accepted:
 * confirm: whether or not to use confirm mode for publishing. If enabled, a callback can be added to the publish call to see if the publish was successful or not. Defaults to false.
 * heartbeat. Send heartbeats at regular intervals to ensure that the server is reachable. Defaults to 10 seconds. Set to 0 to disable heartbeats.
 * productName: will show up in the admin interface for the connection. Great for debugging purpouses. Defaults to node app name and version from package.json.
+* queueArguments: broker-specific args for creating queues ("x-message-ttl", "x-max-priority" etc)
 * reuse: key for connection re-use.
 
 ### Broker

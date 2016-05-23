@@ -11,7 +11,8 @@ var defaultBehaviour = {
   confirm: false,
   heartbeat: 10,
   productName: getProductName(),
-  resubscribeOnError: true
+  resubscribeOnError: true,
+  queueArguments: {}
 };
 
 function init(behaviour) {
@@ -31,7 +32,11 @@ function init(behaviour) {
       var routingKeys = Array.isArray(routingKeyOrKeys) ? routingKeyOrKeys : [routingKeyOrKeys];
       conn.createChannel(function (channelErr, subChannel) {
         subChannel.prefetch(behaviour.prefetch);
-        var queueOpts = {durable: !!queue, autoDelete: !queue, exclusive: !queue};
+        var queueOpts = {
+          durable: !!queue,
+          autoDelete: !queue,
+          exclusive: !queue,
+          arguments: behaviour.queueArguments};
         subChannel.assertExchange(behaviour.exchange, "topic");
         subChannel.assertQueue(queue, queueOpts);
         routingKeys.forEach(function (key) {
