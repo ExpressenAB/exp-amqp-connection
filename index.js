@@ -4,6 +4,7 @@ var bootstrap = require("./bootstrap");
 var EventEmitter = require("events");
 var transform = require("./transform");
 var _ = require("lodash");
+var crypto = require("crypto");
 
 var defaultBehaviour = {
   reuse: "default",
@@ -37,8 +38,9 @@ function init(behaviour) {
           autoDelete: !queue,
           exclusive: !queue,
           arguments: behaviour.queueArguments};
+        var queueName = queue ? queue : getProductName() + "-" + getRandomStr();
         subChannel.assertExchange(behaviour.exchange, "topic");
-        subChannel.assertQueue(queue, queueOpts);
+        subChannel.assertQueue(queueName, queueOpts);
         routingKeys.forEach(function (key) {
           subChannel.bindQueue(queue, behaviour.exchange, key, {});
         });
@@ -99,10 +101,15 @@ function init(behaviour) {
 function getProductName() {
   try {
     var pkg = require(process.cwd() + "/package.json");
-    return pkg.name + " " + pkg.version;
+    var nodeEnv = (process.env.NODE_ENV || "development");
+    return pkg.name + "-" + nodeEnv;
   } catch (e) {
     return "exp-amqp-connection";
   }
+}
+
+function getRandomStr() {
+  return crypto.randomBytes(20).toString("hex").slice(1, 8);
 }
 
 module.exports = init;
