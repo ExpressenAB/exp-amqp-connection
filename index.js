@@ -42,7 +42,7 @@ function init(behaviour) {
         subChannel.assertExchange(behaviour.exchange, "topic");
         subChannel.assertQueue(queueName, queueOpts);
         routingKeys.forEach(function (key) {
-          subChannel.bindQueue(queue, behaviour.exchange, key, {});
+          subChannel.bindQueue(queueName, behaviour.exchange, key, {});
         });
         var amqpHandler = function (message) {
           if (!message) return handleSubscribeError("Subscription cancelled");
@@ -52,8 +52,8 @@ function init(behaviour) {
           handler(transform.decode(message), message, {ack: ackFun});
         };
         var consumeOpts = {noAck: !behaviour.ack};
-        subChannel.consume(queue, amqpHandler, consumeOpts, cb);
-        api.emit("subscribed", {key: routingKeyOrKeys, queue: queue});
+        subChannel.consume(queueName, amqpHandler, consumeOpts, cb);
+        api.emit("subscribed", {key: routingKeyOrKeys, queue: queueName});
       });
 
       function handleSubscribeError(err) {
