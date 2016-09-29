@@ -7,7 +7,7 @@
     "Jens Carlén",
     "Pål Edman"
   ],
-  "version": "2.1.1",
+  "version": "2.1.2",
   "scripts": {
     "test": "NODE_ENV=test mocha -t 5000 && eslint ."
   },
