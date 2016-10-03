@@ -195,6 +195,29 @@ Scenario("Cancelled sub", () => {
   });
 });
 
+Scenario("Connection removed", () => {
+  var broker;
+  var error;
+
+  after((done) => { shutdown(broker, done); });
+  When("We have a connection", (done) => {
+    broker = amqp(defaultBehaviour);
+    broker.on("error", (err) => {
+      error = err;
+    });
+    // Just do something so the connection is bootstrapped.
+    broker.publish("garbage", "garbage", done);
+  });
+
+  And("We delete the connection", (done) => {
+    killRabbitConnections();
+    waitForTruthy(() => error, done);
+  });
+  Then("An error 320 should be raised", () => {
+    assert.equal(320, error.code);
+  });
+});
+
 Feature("Bootstrapping", () => {
   var broker;
   before(killRabbitConnections);
