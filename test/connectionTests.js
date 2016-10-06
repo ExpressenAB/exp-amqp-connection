@@ -8,56 +8,47 @@ var assert = require("assert");
 var async = require("async");
 var _ = require("lodash");
 
-var defaultBehaviour = {exchange: "e1", confirm: true, url: "amqp://localhost"};
+var RABBIT_HOST = "linked-rabbitmq";
+var defaultBehaviour = {exchange: "e1", confirm: true, url: "amqp://" + RABBIT_HOST};
 
-function init(behaviour) {
-  return amqp(behaviour);
-}
+Feature("Connect", () => {
 
-function shutdown(broker, done) {
-  broker.removeAllListeners("error");
-  broker.on("error", function () {});
-  broker.shutdown(done);
-}
-
-Feature("Connect", function () {
-
-  Scenario("Ok connection", function () {
+  Scenario("Ok connection", () => {
     var broker;
-    after(function (done) { shutdown(broker, done); });
-    When("Connecting to default port", function () {
+    after((done) => shutdown(broker, done));
+    When("Connecting to default port", () => {
       broker = init(defaultBehaviour);
     });
-    Then("The connection should be ok", function (done) {
+    Then("The connection should be ok", (done) => {
       broker.publish("foobar", "foobar", done);
     });
   });
 
-  Scenario("Bad connection", function () {
+  Scenario("Bad connection", () => {
     var broker;
     var badPortBehaviour;
-    after(function (done) { shutdown(broker, done); });
-    When("Trying to connect to bad port", function () {
-      badPortBehaviour = _.extend({}, defaultBehaviour, {reuse: "bad-port", url: "amqp://localhost:6666"});
+    after((done) => { shutdown(broker, done); });
+    When("Trying to connect to bad port", () => {
+      badPortBehaviour = _.extend({}, defaultBehaviour, {reuse: "bad-port", url: "amqp://" + RABBIT_HOST + ":6666"});
     });
-    Then("We should get an error", function (done) {
+    Then("We should get an error", (done) => {
       broker = init(badPortBehaviour);
-      broker.once("error", function () {
+      broker.once("error", () => {
         done();
       });
       broker.publish("test", "Message");
     });
   });
 
-  Scenario("Disconnect with reuse", function () {
+  Scenario("Disconnect with reuse", () => {
     var broker;
-    after(function (done) { shutdown(broker, done); });
-    When("We have a connection", function () {
+    after((done) => { shutdown(broker, done); });
+    When("We have a connection", () => {
       broker = amqp(defaultBehaviour);
     });
     And("And we kill all rabbit connections", killRabbitConnections);
-    And("We sleep a while", function (done) { setTimeout(done, 500); });
-    Then("We can use the broker again", function (done) {
+    And("We sleep a while", (done) => { setTimeout(done, 500); });
+    Then("We can use the broker again", (done) => {
       broker.publish("bogus", "Hello", done);
     });
   });
@@ -69,148 +60,180 @@ var pubTests = [
   {type: "object", data: {greeting: "Hello"}, result: {greeting: "Hello"}}
 ];
 
-pubTests.forEach(function (test) {
-  Scenario("Pubsub with " + test.type + " message", function () {
+pubTests.forEach((test) => {
+  Scenario("Pubsub with " + test.type + " message", () => {
     var broker;
     var recieved;
-    after(function (done) { shutdown(broker, done); });
-    And("We have a connection", function () {
+    after((done) => shutdown(broker, done));
+    And("We have a connection", () => {
       broker = init(defaultBehaviour);
     });
-    And("We create a subscription", function (done) {
-      broker.subscribeTmp("testRoutingKey", function (msg) {
+    And("We create a subscription", (done) => {
+      broker.subscribeTmp("testRoutingKey", (msg) => {
         recieved = msg;
       }, done);
     });
-    And("We publish a message", function (done) {
-      broker.publish("testRoutingKey", test.data, done);
+    And("We publish a message", (done) => {
+      broker.publish("testRoutingKey", test.data);
+      waitForTruthy(() => recieved, done);
     });
-    Then("It should arrive correctly", function () {
+    Then("It should arrive correctly", () => {
       assert.deepEqual(test.result, recieved);
     });
   });
 });
 
-Scenario("Multiple routing keys", function () {
+Scenario("Multiple routing keys", () => {
   var messages = [];
   var broker;
-  var handler = function (message) {
+  after((done) => shutdown(broker, done));
+  var handler = (message) => {
     messages.push(message.testData);
   };
-  after(function (done) { shutdown(broker, done); });
-  When("We have a connection", function () {
+  When("We have a connection", () => {
     broker = init(defaultBehaviour);
   });
-  And("We create a subscription for routing key 1 and 2", function (done) {
+  And("We create a subscription for routing key 1 and 2", (done) => {
     broker.subscribe(["rk1", "rk2"], "testQ2", handler, done);
   });
-  When("We publish a message with routing key 1", function (done) {
-    broker.publish("rk1", {testData: "m1"}, done);
+  When("We publish a message with routing key 1", (done) => {
+    broker.publish("rk1", {testData: "m1"});
+    waitForTruthy(() => messages.length > 0, done);
   });
-  Then("It should be delivered once", function () {
+  Then("It should be delivered once", () => {
     assert.deepEqual(["m1"], messages);
   });
-  When("We publish a message with routing key 2", function (done) {
-    broker.publish("rk2", {testData: "m2"}, done);
+  When("We publish a message with routing key 2", (done) => {
+    broker.publish("rk2", {testData: "m2"});
+    waitForTruthy(() => messages.length > 1, done);
   });
-  Then("It should be delivered once", function () {
+  Then("It should be delivered once", () => {
     assert.deepEqual(messages, ["m1", "m2"]);
   });
 });
 
 
-Scenario("Multiple subscriptions", function () {
+Scenario("Multiple subscriptions", () => {
   var messages = [];
   var broker;
-  var handler = function (message) {
+  var handler = (message) => {
     messages.push(message);
   };
-  after(function (done) { shutdown(broker, done); });
-  When("We have a connection", function () {
+  after((done) => { shutdown(broker, done); });
+  When("We have a connection", () => {
     broker = init(defaultBehaviour);
   });
-  And("We create a subscription with routing key 1", function (done) {
+  And("We create a subscription with routing key 1", (done) => {
     broker.subscribe(["k1"], "testQ-1", handler, done);
   });
-  And("We create another subscription qith routing key 1", function (done) {
+  And("We create another subscription qith routing key 1", (done) => {
       broker.subscribe(["k1"], "testQ-2", handler, done);
   });
-  And("We create a subscription with routing key 2", function (done) {
+  And("We create a subscription with routing key 2", (done) => {
     broker.subscribe(["k2"], "testQ-3", handler, done);
   });
 
-  When("We publish a message with key 1", function (done) {
-    broker.publish("k1", "m1", done);
+  When("We publish a message with key 1", (done) => {
+    broker.publish("k1", "m1");
+    waitForTruthy(() => messages.length > 1, done);
   });
-  Then("It should be delivered twice", function () {
+  Then("It should be delivered twice", () => {
     assert.deepEqual(["m1", "m1"], messages);
   });
-  When("We publish a message with routing key 2", function (done) {
-    broker.publish("k2", "m2", done);
+  When("We publish a message with routing key 2", (done) => {
+    broker.publish("k2", "m2");
+    waitForTruthy(() => messages.length > 2, done);
   });
-  Then("It should be delivered once", function () {
+  Then("It should be delivered once", () => {
     assert.deepEqual(messages, ["m1", "m1", "m2"]);
   });
 });
 
-Scenario("Pubsub using tmp queue", function () {
+Scenario("Pubsub using tmp queue", () => {
   var recieved;
   var broker;
-  after(function (done) { shutdown(broker, done); });
-  When("We have a connection", function () {
+  after((done) => { shutdown(broker, done); });
+  When("We have a connection", () => {
     broker = init(defaultBehaviour);
   });
-  And("We create a subscription without specifying a queue name", function (done) {
-    broker.subscribeTmp("testRoutingKey", function (msg) {
+  And("We create a subscription without specifying a queue name", (done) => {
+    broker.subscribeTmp("testRoutingKey", (msg) => {
       recieved = msg;
     }, done);
   });
-  And("We publish a message", function (done) {
-    broker.publish("testRoutingKey", "Hi there!", done);
+  And("We publish a message", (done) => {
+    broker.publish("testRoutingKey", "Hi there!");
+    waitForTruthy(() => recieved, done);
   });
-  Then("It should arrive correctly", function () {
+  Then("It should arrive correctly", () => {
     assert.deepEqual("Hi there!", recieved);
   });
 });
 
-Scenario("Cancelled sub", function () {
+Scenario("Cancelled sub", () => {
   var broker;
   var error;
-  after(function (done) { shutdown(broker, done); });
-  When("We have a connection", function () {
+  after((done) => { shutdown(broker, done); });
+  When("We have a connection", () => {
     broker = amqp(defaultBehaviour);
   });
 
-  And("We create a subscription", function (done) {
-    broker.on("error", function (err) {
+  And("We create a subscription", (done) => {
+    broker.on("error", (err) => {
       error = err;
     });
-    broker.subscribe("testRoutingKey", "testQ2", function () {}, done);
+    broker.subscribe("testRoutingKey", "testQ2", () => {}, done);
   });
-  And("We delete the queue", function (done) {
-    deleteRabbitQueue("testQ2", done);
+  And("We delete the queue", (done) => {
+    deleteRabbitQueue("testQ2", (err) => {
+      if (err) return done(err);
+      waitForTruthy(() => error, done);
+    });
   });
-  Then("An error should be raised", function () {
+  Then("An error should be raised", () => {
     assert.equal("Subscription cancelled", error);
   });
 });
 
-Feature("Bootstrapping", function () {
+Scenario("Connection removed", () => {
+  var broker;
+  var error;
+
+  after((done) => { shutdown(broker, done); });
+  When("We have a connection", (done) => {
+    broker = amqp(defaultBehaviour);
+    broker.on("error", (err) => {
+      error = err;
+    });
+    // Just do something so the connection is bootstrapped.
+    broker.publish("garbage", "garbage", done);
+  });
+
+  And("We delete the connection", (done) => {
+    killRabbitConnections();
+    waitForTruthy(() => error, done);
+  });
+  Then("An error 320 should be raised", () => {
+    assert.equal(320, error.code);
+  });
+});
+
+Feature("Bootstrapping", () => {
   var broker;
   before(killRabbitConnections);
-  after(function (done) { shutdown(broker, done); });
-  When("Connect to the borker", function () {
+  after((done) => { shutdown(broker, done); });
+  When("Connect to the borker", () => {
     broker = amqp(defaultBehaviour);
   });
-  And("We use it a ton of times", function (done) {
+  And("We use it a ton of times", (done) => {
     var i = 0;
     async.whilst(
-      function () { return i++ < 100; },
-      function (cb) { broker.publish("bogus", "bogus", cb); },
+      () => { return i++ < 100; },
+      (cb) => { broker.publish("bogus", "bogus", cb); },
       done);
   });
-  Then("Only one actual connection should be created", function (done) {
-    getRabbitConnections(function (err, conns) {
+  Then("Only one actual connection should be created", (done) => {
+    getRabbitConnections((err, conns) => {
       if (err) return done(err);
       assert.equal(1, conns.length);
       done();
@@ -219,31 +242,54 @@ Feature("Bootstrapping", function () {
 });
 
 function getRabbitConnections(callback) {
-  request.get("http://guest:guest@localhost:15672/api/connections",
-  function (err, resp, connections) {
-    callback(err, JSON.parse(connections));
-  });
+  request.get(adminUrl() + "/api/connections",
+              (err, resp, connections) => {
+                if (err) return callback(err);
+                callback(null, JSON.parse(connections));
+              });
 }
 
 function killRabbitConnections() {
-  getRabbitConnections(function (err, connections) {
+  getRabbitConnections((err, connections) => {
     if (err) assert(false, err);
     connections.forEach(killRabbitConnection);
   });
 }
 
 function killRabbitConnection(conn) {
-  deleteResource("http://guest:guest@localhost:15672/api/connections/" + conn.name, assert.ifError);
+  deleteResource(adminUrl() + "/api/connections/" + conn.name, assert.ifError);
 }
 
 function deleteRabbitQueue(queue, done) {
-  deleteResource("http://guest:guest@localhost:15672/api/queues/%2F/" + queue, done);
+  deleteResource(adminUrl() + "/api/queues/%2F/" + queue, done);
 }
 
 function deleteResource(url, done) {
-  request.del(url, function (err, resp, body) {
+  request.del(url, (err, resp, body) => {
     if (err) return done(err);
     if (resp.statusCode >= 300) return done(resp.statusCode + " " + body);
     done();
   });
+}
+
+function adminUrl() {
+  return "http://guest:guest@" + RABBIT_HOST + ":15672";
+}
+
+function init(behaviour) {
+  return amqp(behaviour);
+}
+
+function shutdown(broker, done) {
+  if (broker) {
+    broker.removeAllListeners("error");
+    broker.on("error", () => {});
+    broker.shutdown(done);
+  } else {
+    setImmediate(done);
+  }
+}
+
+function waitForTruthy(fun, cb) {
+  return fun() ? cb() : setTimeout(() => waitForTruthy(fun, cb), 5);
 }

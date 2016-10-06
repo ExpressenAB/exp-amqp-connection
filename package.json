@@ -9,7 +9,9 @@
   ],
   "version": "2.1.2",
   "scripts": {
-    "test": "NODE_ENV=test mocha -t 5000 && eslint ."
+    "pretest": "docker-compose build",
+    "test": "docker-compose run app \"cd /app && node_modules/.bin/mocha\"",
+    "posttest" : "eslint --cache ."
   },
   "repository": "git://github.com/ExpressenAB/exp-amqp-connection.git",
   "keywords": [
