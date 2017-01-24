@@ -39,6 +39,8 @@ broker.subscribeTmp("routingKey2", console.log);
 broker.publish("routingKey1", "Msg 1");
 broker.publish("routingKey1", "Msg 2");
 
+// Delay delivery with 3000 ms using temporary exchange/queue-pair and dead-lettering.
+broker.delayedPublish("routingKey2", "Msg 3", 3000); 
 ```
 
 ### Options
