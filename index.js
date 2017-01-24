@@ -5,6 +5,7 @@ var EventEmitter = require("events");
 var transform = require("./transform");
 var _ = require("lodash");
 var crypto = require("crypto");
+var async = require("async");
 
 var defaultBehaviour = {
   reuse: "default",
@@ -78,6 +79,35 @@ function init(behaviour) {
       }
       var encodedMsg = transform.encode(message);
       channel.publish(behaviour.exchange, routingKey, encodedMsg.buffer, encodedMsg.props, cb);
+    });
+  };
+
+  api.delayedPublish = function (routingKey, message, delay, cb) {
+    cb = cb || function () {};
+    bootstrap(behaviour, api, function (connErr, conn, channel) {
+      var name = behaviour.exchange + "-exp-amqp-delayed-" + delay;
+      channel.assertExchange(name, "fanout", {
+        durable: true,
+        autoDelete: true
+      });
+      channel.assertQueue(name, {
+        durable: true,
+        autoDelete: true,
+        arguments: {
+          "x-dead-letter-exchange": behaviour.exchange,
+          "x-message-ttl": delay,
+          "x-expires": delay + 60000
+        }
+      });
+      var encodedMsg = transform.encode(message);
+      async.series([
+        function (done) {
+          channel.bindQueue(name, name, "#", {}, done);
+        },
+        function (done) {
+          channel.publish(name, routingKey, encodedMsg.buffer, encodedMsg.props, done);
+        }
+      ], cb);
     });
   };
 

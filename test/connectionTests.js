@@ -54,167 +54,169 @@ Feature("Connect", () => {
   });
 });
 
-var pubTests = [
-  {type: "buffer", data: new Buffer("Hello"), result: "Hello"},
-  {type: "string", data: "Hello", result: "Hello"},
-  {type: "object", data: {greeting: "Hello"}, result: {greeting: "Hello"}}
-];
+Feature("Pubsub", () => {
+  var pubTests = [
+    {type: "buffer", data: new Buffer("Hello"), result: "Hello"},
+    {type: "string", data: "Hello", result: "Hello"},
+    {type: "object", data: {greeting: "Hello"}, result: {greeting: "Hello"}}
+  ];
 
-pubTests.forEach((test) => {
-  Scenario("Pubsub with " + test.type + " message", () => {
+  pubTests.forEach((test) => {
+    Scenario("Pubsub with " + test.type + " message", () => {
+      var broker;
+      var received;
+      after((done) => shutdown(broker, done));
+      And("We have a connection", () => {
+        broker = init(defaultBehaviour);
+      });
+      And("We create a subscription", (done) => {
+        broker.subscribeTmp("testRoutingKey", (msg) => {
+          received = msg;
+        }, done);
+      });
+      And("We publish a message", (done) => {
+        broker.publish("testRoutingKey", test.data);
+        waitForTruthy(() => received, done);
+      });
+      Then("It should arrive correctly", () => {
+        assert.deepEqual(test.result, received);
+      });
+    });
+  });
+
+  Scenario("Multiple routing keys", () => {
+    var messages = [];
     var broker;
-    var recieved;
     after((done) => shutdown(broker, done));
-    And("We have a connection", () => {
+    var handler = (message) => {
+      messages.push(message.testData);
+    };
+    When("We have a connection", () => {
       broker = init(defaultBehaviour);
     });
-    And("We create a subscription", (done) => {
+    And("We create a subscription for routing key 1 and 2", (done) => {
+      broker.subscribe(["rk1", "rk2"], "testQ2", handler, done);
+    });
+    When("We publish a message with routing key 1", (done) => {
+      broker.publish("rk1", {testData: "m1"});
+      waitForTruthy(() => messages.length > 0, done);
+    });
+    Then("It should be delivered once", () => {
+      assert.deepEqual(["m1"], messages);
+    });
+    When("We publish a message with routing key 2", (done) => {
+      broker.publish("rk2", {testData: "m2"});
+      waitForTruthy(() => messages.length > 1, done);
+    });
+    Then("It should be delivered once", () => {
+      assert.deepEqual(messages, ["m1", "m2"]);
+    });
+  });
+
+
+  Scenario("Multiple subscriptions", () => {
+    var messages = [];
+    var broker;
+    var handler = (message) => {
+      messages.push(message);
+    };
+    after((done) => { shutdown(broker, done); });
+    When("We have a connection", () => {
+      broker = init(defaultBehaviour);
+    });
+    And("We create a subscription with routing key 1", (done) => {
+      broker.subscribe(["k1"], "testQ-1", handler, done);
+    });
+    And("We create another subscription qith routing key 1", (done) => {
+      broker.subscribe(["k1"], "testQ-2", handler, done);
+    });
+    And("We create a subscription with routing key 2", (done) => {
+      broker.subscribe(["k2"], "testQ-3", handler, done);
+    });
+
+    When("We publish a message with key 1", (done) => {
+      broker.publish("k1", "m1");
+      waitForTruthy(() => messages.length > 1, done);
+    });
+    Then("It should be delivered twice", () => {
+      assert.deepEqual(["m1", "m1"], messages);
+    });
+    When("We publish a message with routing key 2", (done) => {
+      broker.publish("k2", "m2");
+      waitForTruthy(() => messages.length > 2, done);
+    });
+    Then("It should be delivered once", () => {
+      assert.deepEqual(messages, ["m1", "m1", "m2"]);
+    });
+  });
+
+  Scenario("Pubsub using tmp queue", () => {
+    var received;
+    var broker;
+    after((done) => { shutdown(broker, done); });
+    When("We have a connection", () => {
+      broker = init(defaultBehaviour);
+    });
+    And("We create a subscription without specifying a queue name", (done) => {
       broker.subscribeTmp("testRoutingKey", (msg) => {
-        recieved = msg;
+        received = msg;
       }, done);
     });
     And("We publish a message", (done) => {
-      broker.publish("testRoutingKey", test.data);
-      waitForTruthy(() => recieved, done);
+      broker.publish("testRoutingKey", "Hi there!");
+      waitForTruthy(() => received, done);
     });
     Then("It should arrive correctly", () => {
-      assert.deepEqual(test.result, recieved);
+      assert.deepEqual("Hi there!", received);
     });
   });
-});
 
-Scenario("Multiple routing keys", () => {
-  var messages = [];
-  var broker;
-  after((done) => shutdown(broker, done));
-  var handler = (message) => {
-    messages.push(message.testData);
-  };
-  When("We have a connection", () => {
-    broker = init(defaultBehaviour);
-  });
-  And("We create a subscription for routing key 1 and 2", (done) => {
-    broker.subscribe(["rk1", "rk2"], "testQ2", handler, done);
-  });
-  When("We publish a message with routing key 1", (done) => {
-    broker.publish("rk1", {testData: "m1"});
-    waitForTruthy(() => messages.length > 0, done);
-  });
-  Then("It should be delivered once", () => {
-    assert.deepEqual(["m1"], messages);
-  });
-  When("We publish a message with routing key 2", (done) => {
-    broker.publish("rk2", {testData: "m2"});
-    waitForTruthy(() => messages.length > 1, done);
-  });
-  Then("It should be delivered once", () => {
-    assert.deepEqual(messages, ["m1", "m2"]);
-  });
-});
-
-
-Scenario("Multiple subscriptions", () => {
-  var messages = [];
-  var broker;
-  var handler = (message) => {
-    messages.push(message);
-  };
-  after((done) => { shutdown(broker, done); });
-  When("We have a connection", () => {
-    broker = init(defaultBehaviour);
-  });
-  And("We create a subscription with routing key 1", (done) => {
-    broker.subscribe(["k1"], "testQ-1", handler, done);
-  });
-  And("We create another subscription qith routing key 1", (done) => {
-      broker.subscribe(["k1"], "testQ-2", handler, done);
-  });
-  And("We create a subscription with routing key 2", (done) => {
-    broker.subscribe(["k2"], "testQ-3", handler, done);
-  });
-
-  When("We publish a message with key 1", (done) => {
-    broker.publish("k1", "m1");
-    waitForTruthy(() => messages.length > 1, done);
-  });
-  Then("It should be delivered twice", () => {
-    assert.deepEqual(["m1", "m1"], messages);
-  });
-  When("We publish a message with routing key 2", (done) => {
-    broker.publish("k2", "m2");
-    waitForTruthy(() => messages.length > 2, done);
-  });
-  Then("It should be delivered once", () => {
-    assert.deepEqual(messages, ["m1", "m1", "m2"]);
-  });
-});
-
-Scenario("Pubsub using tmp queue", () => {
-  var recieved;
-  var broker;
-  after((done) => { shutdown(broker, done); });
-  When("We have a connection", () => {
-    broker = init(defaultBehaviour);
-  });
-  And("We create a subscription without specifying a queue name", (done) => {
-    broker.subscribeTmp("testRoutingKey", (msg) => {
-      recieved = msg;
-    }, done);
-  });
-  And("We publish a message", (done) => {
-    broker.publish("testRoutingKey", "Hi there!");
-    waitForTruthy(() => recieved, done);
-  });
-  Then("It should arrive correctly", () => {
-    assert.deepEqual("Hi there!", recieved);
-  });
-});
-
-Scenario("Cancelled sub", () => {
-  var broker;
-  var error;
-  after((done) => { shutdown(broker, done); });
-  When("We have a connection", () => {
-    broker = amqp(defaultBehaviour);
-  });
-
-  And("We create a subscription", (done) => {
-    broker.on("error", (err) => {
-      error = err;
+  Scenario("Cancelled sub", () => {
+    var broker;
+    var error;
+    after((done) => { shutdown(broker, done); });
+    When("We have a connection", () => {
+      broker = amqp(defaultBehaviour);
     });
-    broker.subscribe("testRoutingKey", "testQ2", () => {}, done);
+
+    And("We create a subscription", (done) => {
+      broker.on("error", (err) => {
+        error = err;
+      });
+      broker.subscribe("testRoutingKey", "testQ2", () => {}, done);
+    });
+    And("We delete the queue", (done) => {
+      deleteRabbitQueue("testQ2", (err) => {
+        if (err) return done(err);
+        waitForTruthy(() => error, done);
+      });
+    });
+    Then("An error should be raised", () => {
+      assert.equal("Subscription cancelled", error);
+    });
   });
-  And("We delete the queue", (done) => {
-    deleteRabbitQueue("testQ2", (err) => {
-      if (err) return done(err);
+
+  Scenario("Connection removed", () => {
+    var broker;
+    var error;
+
+    after((done) => { shutdown(broker, done); });
+    When("We have a connection", (done) => {
+      broker = amqp(defaultBehaviour);
+      broker.on("error", (err) => {
+        error = err;
+      });
+      // Just do something so the connection is bootstrapped.
+      broker.publish("garbage", "garbage", done);
+    });
+
+    And("We delete the connection", (done) => {
+      killRabbitConnections();
       waitForTruthy(() => error, done);
     });
-  });
-  Then("An error should be raised", () => {
-    assert.equal("Subscription cancelled", error);
-  });
-});
-
-Scenario("Connection removed", () => {
-  var broker;
-  var error;
-
-  after((done) => { shutdown(broker, done); });
-  When("We have a connection", (done) => {
-    broker = amqp(defaultBehaviour);
-    broker.on("error", (err) => {
-      error = err;
+    Then("An error 320 should be raised", () => {
+      assert.equal(320, error.code);
     });
-    // Just do something so the connection is bootstrapped.
-    broker.publish("garbage", "garbage", done);
-  });
-
-  And("We delete the connection", (done) => {
-    killRabbitConnections();
-    waitForTruthy(() => error, done);
-  });
-  Then("An error 320 should be raised", () => {
-    assert.equal(320, error.code);
   });
 });
 
@@ -237,6 +239,38 @@ Feature("Bootstrapping", () => {
       if (err) return done(err);
       assert.equal(1, conns.length);
       done();
+    });
+  });
+});
+
+Feature("Delayed publish", () => {
+  Scenario("2.5 second delay", () => {
+    var broker;
+    let received = null;
+    after((done) => shutdown(broker, done));
+    When("We have a connection", () => {
+      broker = init(defaultBehaviour);
+    });
+    And("We create a subscription", (done) => {
+      broker.subscribeTmp("testRoutingKey", (msg) => {
+        received = msg;
+      }, done);
+    });
+    And("We publish a message with a 2.5 second deplay", () => {
+      broker.delayedPublish("testRoutingKey", "Hello hi", 2500);
+    });
+
+    When("We wait one second", (done) => {
+      setTimeout(done, 1000);
+    });
+    Then("It should not have arrived yet", () => {
+      assert.equal(null, received);
+    });
+    When("We wait two more seconds", (done) => {
+      setTimeout(done, 2000);
+    });
+    Then("The message should have arrived", () => {
+      assert.equal("Hello hi", received);
     });
   });
 });
