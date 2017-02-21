@@ -7,6 +7,8 @@ var _ = require("lodash");
 var crypto = require("crypto");
 var async = require("async");
 
+var TMP_Q_TTL = 60000;
+
 var defaultBehaviour = {
   reuse: "default",
   ack: false,
@@ -38,7 +40,8 @@ function init(behaviour) {
           durable: !!queue,
           autoDelete: !queue,
           exclusive: !queue,
-          arguments: behaviour.queueArguments};
+          arguments: Object.assign(!queue ? {"x-expires": TMP_Q_TTL} : {}, behaviour.queueArguments)
+        };
         var queueName = queue ? queue : getProductName() + "-" + getRandomStr();
         subChannel.assertExchange(behaviour.exchange, "topic");
         subChannel.assertQueue(queueName, queueOpts);
