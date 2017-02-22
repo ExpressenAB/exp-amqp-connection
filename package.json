@@ -7,11 +7,11 @@
     "Jens Carlén",
     "Pål Edman"
   ],
-  "version": "2.2.0",
+  "version": "2.2.1",
   "scripts": {
     "pretest": "docker-compose build",
     "test": "docker-compose run app \"cd /app && node_modules/.bin/mocha\"",
-    "posttest" : "eslint --cache ."
+    "posttest": "eslint --cache ."
   },
   "repository": "git://github.com/ExpressenAB/exp-amqp-connection.git",
   "keywords": [
