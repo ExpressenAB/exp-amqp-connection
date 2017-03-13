@@ -16,7 +16,8 @@ var defaultBehaviour = {
   heartbeat: 10,
   productName: getProductName(),
   resubscribeOnError: true,
-  queueArguments: {}
+  queueArguments: {},
+  prefetch: 20
 };
 
 function init(behaviour) {

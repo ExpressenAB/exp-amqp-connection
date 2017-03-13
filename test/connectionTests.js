@@ -171,6 +171,38 @@ Feature("Pubsub", () => {
     });
   });
 
+  Scenario("Acknowledgement", () => {
+    var received = [];
+    var broker;
+    after((done) => { shutdown(broker, done); });
+
+    When("We have a connection with acknowledgement enabled and prefetch 3", () => {
+      broker = init(_.defaults({ack: true, prefetch: 3}, defaultBehaviour));
+    });
+    And("We create a subscription", (done) => {
+      broker.subscribeTmp("testAckRoutingKey", (msg, meta, ack) => {
+        received.push({msg: msg, ack: ack});
+      }, done);
+    });
+    And("We publish five messages messages", () => {
+      _.times(5, () => broker.publish("testAckRoutingKey", "Hi there 1"));
+    });
+    Then("Only three of them should be delivered", (done) => {
+      waitForTruthy(() => received.length === 3, done);
+    });
+
+    When("We acknowledge them", () => {
+      received.forEach((r) => r.ack.ack());
+      received = [];
+    });
+
+    Then("The remaining two should be received", (done) => {
+      waitForTruthy(() => received.length === 2, done);
+        received.forEach((r) => r.ack.ack());
+    });
+
+  });
+
   Scenario("Cancelled sub", () => {
     var broker;
     var error;
