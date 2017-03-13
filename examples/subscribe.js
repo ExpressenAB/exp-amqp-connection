@@ -10,7 +10,8 @@ var init = require("exp-amqp-connection");
 var amqpBehaviour = {
   url: "amqp://localhost",
   exchange: "my-excchange",
-  ack: "true"
+  ack: "true",
+  prefetch: 10
 };
 
 var broker = init(amqpBehaviour);
