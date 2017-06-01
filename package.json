@@ -7,7 +7,7 @@
     "Jens Carlén",
     "Pål Edman"
   ],
-  "version": "2.2.4",
+  "version": "2.2.5",
   "scripts": {
     "pretest": "docker-compose build",
     "test": "docker-compose run app \"cd /app && node_modules/.bin/mocha\"",
@@ -24,13 +24,13 @@
   },
   "main": "index.js",
   "dependencies": {
-    "amqplib": "^0.4.1",
-    "lodash": "^4.8.2"
+    "amqplib": "^0.4.1"
   },
   "devDependencies": {
     "async": "^0.9.0",
     "chai": "^2.1.1",
     "eslint": "^2.6.3",
+    "lodash": "^4.17.4",
     "mocha": "^2.2.1",
     "mocha-cakes-2": "^1.1.1",
     "request": "^2.53.0"

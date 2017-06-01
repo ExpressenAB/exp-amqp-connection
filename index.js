@@ -3,7 +3,6 @@
 var bootstrap = require("./bootstrap");
 var EventEmitter = require("events");
 var transform = require("./transform");
-var _ = require("lodash");
 var crypto = require("crypto");
 var async = require("async");
 
@@ -22,7 +21,7 @@ var defaultBehaviour = {
 
 function init(behaviour) {
   var api = new EventEmitter();
-  behaviour = _.assign(defaultBehaviour, behaviour);
+  behaviour = Object.assign({}, defaultBehaviour, behaviour);
 
   api.subscribeTmp = function (routingKeyOrKeys, handler, cb) {
     api.subscribe(routingKeyOrKeys, undefined, handler, cb);
