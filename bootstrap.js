@@ -1,6 +1,6 @@
 "use strict";
+
 var amqp = require("amqplib/callback_api");
-var _ = require("lodash");
 var url = require("url");
 var EventEmitter = require("events");
 var qs = require("querystring");
@@ -32,8 +32,7 @@ function attemptReuse(key, callback) {
 
 function doConnect(behaviour, listener, callback) {
   var urlObj = url.parse(behaviour.url);
-  urlObj.search =
-    qs.stringify(_.defaults(qs.parse(urlObj.search), {heartbeat: behaviour.heartbeat}));
+  urlObj.search = qs.stringify(Object.assign({heartbeat: behaviour.heartbeat}, qs.parse(urlObj.search)));
   var amqpUrl = url.format(urlObj);
   var reuse = new EventEmitter();
   if (behaviour.reuse) {
