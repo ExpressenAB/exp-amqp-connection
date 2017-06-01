@@ -29,7 +29,7 @@ Feature("Connect", () => {
     var badPortBehaviour;
     after((done) => { shutdown(broker, done); });
     When("Trying to connect to bad port", () => {
-      badPortBehaviour = _.extend({}, defaultBehaviour, {reuse: "bad-port", url: "amqp://" + RABBIT_HOST + ":6666"});
+      badPortBehaviour = Object.assign({}, defaultBehaviour, {reuse: "bad-port", url: "amqp://" + RABBIT_HOST + ":6666"});
     });
     Then("We should get an error", (done) => {
       broker = init(badPortBehaviour);
@@ -112,7 +112,6 @@ Feature("Pubsub", () => {
       assert.deepEqual(messages, ["m1", "m2"]);
     });
   });
-
 
   Scenario("Multiple subscriptions", () => {
     var messages = [];
@@ -304,6 +303,59 @@ Feature("Delayed publish", () => {
     Then("The message should have arrived", () => {
       assert.equal("Hello hi", received);
     });
+  });
+});
+
+Feature("Multiple connections", () => {
+  let broker1, broker2;
+
+  after((done) => shutdown(broker1, done));
+  after((done) => shutdown(broker2, done));
+
+  let received1, received2;
+
+  Given("We have a connection to one exchange", () => {
+    broker1 = init(Object.assign({}, defaultBehaviour, {
+      exchange: "es-first",
+      reuse: "first",
+      confirm: true
+    }));
+  });
+
+  And("We have a connection to another exchange", () => {
+    broker2 = init(Object.assign({}, defaultBehaviour, {
+      exchange: "es-second",
+      reuse: "second",
+      confirm: true
+    }));
+  });
+
+  And("We create a subscription to first connection", (done) => {
+    broker1.subscribeTmp("testRoutingKey-1", (msg) => {
+      received1 = msg;
+    }, done);
+  });
+
+  And("We create a subscription to first connection", (done) => {
+    broker2.subscribeTmp("testRoutingKey-2", (msg) => {
+      received2 = msg;
+    }, done);
+  });
+
+  When("We publish a to first connection", (done) => {
+    broker1.publish("testRoutingKey-1", "Hello first", done);
+  });
+
+  And("We publish a to second connection", (done) => {
+    broker2.publish("testRoutingKey-2", "Hello second", done);
+  });
+
+  Then("The first messages should arrive correctly", () => {
+    assert.equal("Hello first", received1);
+  });
+
+  Then("And the second messages should arrive correctly", () => {
+    assert.equal("Hello second", received2);
   });
 });
 
