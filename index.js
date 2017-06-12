@@ -53,7 +53,17 @@ function init(behaviour) {
           var ackFun = function () {
             subChannel.ack(message);
           };
-          handler(transform.decode(message), message, {ack: ackFun});
+          var decodedMessage;
+          try {
+            decodedMessage = transform.decode(message);
+          } catch (decodeErr) {
+            console.log("WARNING: Ignoring un-decodable message:", message, "reason:", decodeErr);
+            if (behaviour.ack) {
+              ackFun(message);
+            }
+            return;
+          }
+          handler(decodedMessage, message, {ack: ackFun});
         };
         var consumeOpts = {noAck: !behaviour.ack};
         subChannel.consume(queueName, amqpHandler, consumeOpts, cb);

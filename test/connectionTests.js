@@ -8,7 +8,7 @@ var assert = require("assert");
 var async = require("async");
 var _ = require("lodash");
 
-var RABBIT_HOST = "linked-rabbitmq";
+var RABBIT_HOST = "localhost";
 var defaultBehaviour = {exchange: "e1", confirm: true, url: "amqp://" + RABBIT_HOST};
 
 Feature("Connect", () => {
@@ -111,6 +111,47 @@ Feature("Pubsub", () => {
     Then("It should be delivered once", () => {
       assert.deepEqual(messages, ["m1", "m2"]);
     });
+  });
+
+
+  Scenario("Unparsable message", () => {
+    var nMessages = 0;
+    var broker;
+    after((done) => shutdown(broker, done));
+    var handler = () => {
+      nMessages++;
+    };
+    When("We have a connection", () => {
+      broker = init(defaultBehaviour);
+    });
+    And("We create a subscription", (done) => {
+      broker.subscribe("rk1", "testQ2", handler, done);
+    });
+    When("We publish an unparsable message", (done) => {
+      var amqpLib = require("amqplib/callback_api");
+      amqpLib.connect(defaultBehaviour.url, {}, (err, conn) => {
+        if (err) return done(err);
+        conn.createChannel((err2, channel) => {
+          if (err2) return done(err2);
+          channel.publish(
+            defaultBehaviour.exchange,
+            "rk1",
+            new Buffer("Hej knekt"),
+            {contentType: "application/json"});
+          done();
+        });
+      });
+    });
+    Then("It should not be delivered", () => {
+      assert.equal(0, nMessages);
+    });
+    When("We publish a valid message", () => {
+      broker.publish("rk1", {testData: "m2"});
+    });
+    Then("It should be delivered once", (done) => {
+      waitForTruthy(() => nMessages === 1, done);
+    });
+
   });
 
   Scenario("Multiple subscriptions", () => {
