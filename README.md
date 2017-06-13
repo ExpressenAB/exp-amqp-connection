@@ -56,6 +56,7 @@ The following options are accepted:
 * productName: will show up in the admin interface for the connection. Great for debugging purpouses. Defaults to node app name and version from package.json.
 * queueArguments: broker-specific args for creating queues ("x-message-ttl", "x-max-priority" etc)
 * reuse: key for connection re-use.
+* logger: A logger object implementing error, warning, info, debug for example https://github.com/tj/log.js
 
 
 ### Broker

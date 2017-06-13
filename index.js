@@ -8,6 +8,11 @@ var async = require("async");
 
 var TMP_Q_TTL = 60000;
 
+var dummyLogger = {
+  // eslint-disable-next-line no-console
+  error: console.log
+};
+
 var defaultBehaviour = {
   reuse: "default",
   ack: false,
@@ -16,7 +21,8 @@ var defaultBehaviour = {
   productName: getProductName(),
   resubscribeOnError: true,
   queueArguments: {},
-  prefetch: 20
+  prefetch: 20,
+  logger: dummyLogger
 };
 
 function init(behaviour) {
@@ -57,7 +63,7 @@ function init(behaviour) {
           try {
             decodedMessage = transform.decode(message);
           } catch (decodeErr) {
-            console.log("WARNING: Ignoring un-decodable message:", message, "reason:", decodeErr);
+            behaviour.logger.error("Ignoring un-decodable message:", message, "reason:", decodeErr);
             if (behaviour.ack) {
               ackFun(message);
             }
