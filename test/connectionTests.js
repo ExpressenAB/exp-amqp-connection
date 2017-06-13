@@ -8,7 +8,7 @@ var assert = require("assert");
 var async = require("async");
 var _ = require("lodash");
 
-var RABBIT_HOST = "localhost";
+var RABBIT_HOST = "linked-rabbitmq";
 var defaultBehaviour = {exchange: "e1", confirm: true, url: "amqp://" + RABBIT_HOST};
 
 Feature("Connect", () => {
