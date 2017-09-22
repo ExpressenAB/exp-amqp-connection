@@ -7,7 +7,7 @@
     "Jens Carlén",
     "Pål Edman"
   ],
-  "version": "2.3.0",
+  "version": "2.3.1",
   "scripts": {
     "pretest": "docker-compose build",
     "test": "docker-compose run app \"cd /app && node_modules/.bin/mocha\"",
