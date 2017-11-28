@@ -17,6 +17,9 @@ function encode(body) {
 
 function decode(message) {
   var messageStr = message.content.toString("utf8");
+  if(!message.properties) {
+    return messageStr;
+  }
   return (message.properties.contentType === JSON_TYPE) ? JSON.parse(messageStr) : messageStr;
 }
 
