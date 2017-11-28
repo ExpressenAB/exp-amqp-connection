@@ -59,6 +59,9 @@ function init(behaviour) {
           var ackFun = function () {
             subChannel.ack(message);
           };
+          var nackFun = function () {
+            subChannel.nack(message);
+          };
           var decodedMessage;
           try {
             decodedMessage = transform.decode(message);
@@ -69,7 +72,7 @@ function init(behaviour) {
             }
             return;
           }
-          handler(decodedMessage, message, {ack: ackFun});
+          handler(decodedMessage, message, {ack: ackFun, nack: nackFun});
         };
         var consumeOpts = {noAck: !behaviour.ack};
         subChannel.consume(queueName, amqpHandler, consumeOpts, cb);

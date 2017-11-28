@@ -9,7 +9,11 @@ var async = require("async");
 var _ = require("lodash");
 
 var RABBIT_HOST = "linked-rabbitmq";
-var defaultBehaviour = {exchange: "e1", confirm: true, url: "amqp://" + RABBIT_HOST};
+var defaultBehaviour = {
+  exchange: "e1",
+  confirm: true,
+  url: "amqp://" + RABBIT_HOST
+};
 
 Feature("Connect", () => {
 
@@ -27,9 +31,14 @@ Feature("Connect", () => {
   Scenario("Bad connection", () => {
     var broker;
     var badPortBehaviour;
-    after((done) => { shutdown(broker, done); });
+    after((done) => {
+      shutdown(broker, done);
+    });
     When("Trying to connect to bad port", () => {
-      badPortBehaviour = Object.assign({}, defaultBehaviour, {reuse: "bad-port", url: "amqp://" + RABBIT_HOST + ":6666"});
+      badPortBehaviour = Object.assign({}, defaultBehaviour, {
+        reuse: "bad-port",
+        url: "amqp://" + RABBIT_HOST + ":6666"
+      });
     });
     Then("We should get an error", (done) => {
       broker = init(badPortBehaviour);
@@ -42,12 +51,16 @@ Feature("Connect", () => {
 
   Scenario("Disconnect with reuse", () => {
     var broker;
-    after((done) => { shutdown(broker, done); });
+    after((done) => {
+      shutdown(broker, done);
+    });
     When("We have a connection", () => {
       broker = amqp(defaultBehaviour);
     });
     And("And we kill all rabbit connections", killRabbitConnections);
-    And("We sleep a while", (done) => { setTimeout(done, 500); });
+    And("We sleep a while", (done) => {
+      setTimeout(done, 500);
+    });
     Then("We can use the broker again", (done) => {
       broker.publish("bogus", "Hello", done);
     });
@@ -55,10 +68,25 @@ Feature("Connect", () => {
 });
 
 Feature("Pubsub", () => {
-  var pubTests = [
-    {type: "buffer", data: new Buffer("Hello"), result: "Hello"},
-    {type: "string", data: "Hello", result: "Hello"},
-    {type: "object", data: {greeting: "Hello"}, result: {greeting: "Hello"}}
+  var pubTests = [{
+      type: "buffer",
+      data: new Buffer("Hello"),
+      result: "Hello"
+    },
+    {
+      type: "string",
+      data: "Hello",
+      result: "Hello"
+    },
+    {
+      type: "object",
+      data: {
+        greeting: "Hello"
+      },
+      result: {
+        greeting: "Hello"
+      }
+    }
   ];
 
   pubTests.forEach((test) => {
@@ -98,14 +126,18 @@ Feature("Pubsub", () => {
       broker.subscribe(["rk1", "rk2"], "testQ2", handler, done);
     });
     When("We publish a message with routing key 1", (done) => {
-      broker.publish("rk1", {testData: "m1"});
+      broker.publish("rk1", {
+        testData: "m1"
+      });
       waitForTruthy(() => messages.length > 0, done);
     });
     Then("It should be delivered once", () => {
       assert.deepEqual(["m1"], messages);
     });
     When("We publish a message with routing key 2", (done) => {
-      broker.publish("rk2", {testData: "m2"});
+      broker.publish("rk2", {
+        testData: "m2"
+      });
       waitForTruthy(() => messages.length > 1, done);
     });
     Then("It should be delivered once", () => {
@@ -136,8 +168,9 @@ Feature("Pubsub", () => {
           channel.publish(
             defaultBehaviour.exchange,
             "rk1",
-            new Buffer("Hej knekt"),
-            {contentType: "application/json"});
+            new Buffer("Hej knekt"), {
+              contentType: "application/json"
+            });
           done();
         });
       });
@@ -146,7 +179,9 @@ Feature("Pubsub", () => {
       assert.equal(0, nMessages);
     });
     When("We publish a valid message", () => {
-      broker.publish("rk1", {testData: "m2"});
+      broker.publish("rk1", {
+        testData: "m2"
+      });
     });
     Then("It should be delivered once", (done) => {
       waitForTruthy(() => nMessages === 1, done);
@@ -160,7 +195,9 @@ Feature("Pubsub", () => {
     var handler = (message) => {
       messages.push(message);
     };
-    after((done) => { shutdown(broker, done); });
+    after((done) => {
+      shutdown(broker, done);
+    });
     When("We have a connection", () => {
       broker = init(defaultBehaviour);
     });
@@ -193,7 +230,9 @@ Feature("Pubsub", () => {
   Scenario("Pubsub using tmp queue", () => {
     var received;
     var broker;
-    after((done) => { shutdown(broker, done); });
+    after((done) => {
+      shutdown(broker, done);
+    });
     When("We have a connection", () => {
       broker = init(defaultBehaviour);
     });
@@ -214,14 +253,22 @@ Feature("Pubsub", () => {
   Scenario("Acknowledgement", () => {
     var received = [];
     var broker;
-    after((done) => { shutdown(broker, done); });
+    after((done) => {
+      shutdown(broker, done);
+    });
 
     When("We have a connection with acknowledgement enabled and prefetch 3", () => {
-      broker = init(_.defaults({ack: true, prefetch: 3}, defaultBehaviour));
+      broker = init(_.defaults({
+        ack: true,
+        prefetch: 3
+      }, defaultBehaviour));
     });
     And("We create a subscription", (done) => {
       broker.subscribeTmp("testAckRoutingKey", (msg, meta, ack) => {
-        received.push({msg: msg, ack: ack});
+        received.push({
+          msg: msg,
+          ack: ack
+        });
       }, done);
     });
     And("We publish five messages messages", () => {
@@ -238,7 +285,7 @@ Feature("Pubsub", () => {
 
     Then("The remaining two should be received", (done) => {
       waitForTruthy(() => received.length === 2, done);
-        received.forEach((r) => r.ack.ack());
+      received.forEach((r) => r.ack.ack());
     });
 
   });
@@ -246,7 +293,9 @@ Feature("Pubsub", () => {
   Scenario("Cancelled sub", () => {
     var broker;
     var error;
-    after((done) => { shutdown(broker, done); });
+    after((done) => {
+      shutdown(broker, done);
+    });
     When("We have a connection", () => {
       broker = amqp(defaultBehaviour);
     });
@@ -272,7 +321,9 @@ Feature("Pubsub", () => {
     var broker;
     var error;
 
-    after((done) => { shutdown(broker, done); });
+    after((done) => {
+      shutdown(broker, done);
+    });
     When("We have a connection", (done) => {
       broker = amqp(defaultBehaviour);
       broker.on("error", (err) => {
@@ -295,15 +346,21 @@ Feature("Pubsub", () => {
 Feature("Bootstrapping", () => {
   var broker;
   before(killRabbitConnections);
-  after((done) => { shutdown(broker, done); });
+  after((done) => {
+    shutdown(broker, done);
+  });
   When("Connect to the borker", () => {
     broker = amqp(defaultBehaviour);
   });
   And("We use it a ton of times", (done) => {
     var i = 0;
     async.whilst(
-      () => { return i++ < 100; },
-      (cb) => { broker.publish("bogus", "bogus", cb); },
+      () => {
+        return i++ < 100;
+      },
+      (cb) => {
+        broker.publish("bogus", "bogus", cb);
+      },
       done);
   });
   Then("Only one actual connection should be created", (done) => {
@@ -400,12 +457,64 @@ Feature("Multiple connections", () => {
   });
 });
 
+Feature("Negative acknowledgement", () => {
+
+  var received = [];
+  var broker;
+  var requeues = 0;
+
+  after((done) => shutdown(broker, done));
+
+  When("We have a connection", () => {
+    broker = init(_.defaults({
+      ack: true
+    }, defaultBehaviour));
+    broker.on("error", (err) => {
+      console.log(err);
+    });
+  });
+  And("We create a subscription", (done) => {
+    broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
+
+      received.push({
+        msg: msg,
+        meta: meta,
+        ack: ack
+      });
+
+      var isNackMessage = msg.msgId === 2;
+      var requeued = isNackMessage && received.length > 3;
+
+      if (isNackMessage && !requeued) {
+        ack.nack();
+      } else {
+        ack.ack();
+      }
+      if (requeued) {
+        requeues++;
+      }
+    }, done);
+  });
+  And("We publish 3 messages", () => {
+    _.times(3, (n) => broker.publish("testNackRoutingKey", {
+      "msgId": n
+    }));
+  });
+  Then("There should be 4 received messages", (done) => {
+    waitForTruthy(() => received.length === 4, done);
+  });
+  And("One message should have been requeued", () => {
+    assert.equal(requeues, 1);
+  });
+
+});
+
 function getRabbitConnections(callback) {
   request.get(adminUrl() + "/api/connections",
-              (err, resp, connections) => {
-                if (err) return callback(err);
-                callback(null, JSON.parse(connections));
-              });
+    (err, resp, connections) => {
+      if (err) return callback(err);
+      callback(null, JSON.parse(connections));
+    });
 }
 
 function killRabbitConnections() {
