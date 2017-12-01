@@ -441,18 +441,20 @@ Feature("Multiple connections", () => {
   });
 
   When("We publish a to first connection", (done) => {
-    broker1.publish("testRoutingKey-1", "Hello first", done);
+    broker1.publish("testRoutingKey-1", "Hello first");
+    waitForTruthy(() => received1, done);
   });
 
   And("We publish a to second connection", (done) => {
-    broker2.publish("testRoutingKey-2", "Hello second", done);
+    broker2.publish("testRoutingKey-2", "Hello second");
+    waitForTruthy(() => received2, done);
   });
 
-  Then("The first messages should arrive correctly", () => {
+  Then("The first message should arrive correctly", () => {
     assert.equal("Hello first", received1);
   });
 
-  Then("And the second messages should arrive correctly", () => {
+  And("The second message should arrive correctly", () => {
     assert.equal("Hello second", received2);
   });
 });
