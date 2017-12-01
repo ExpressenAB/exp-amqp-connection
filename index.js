@@ -46,7 +46,9 @@ function init(behaviour) {
           durable: !!queue,
           autoDelete: !queue,
           exclusive: !queue,
-          arguments: Object.assign(!queue ? {"x-expires": TMP_Q_TTL} : {}, behaviour.queueArguments)
+          arguments: Object.assign(!queue ? {
+            "x-expires": TMP_Q_TTL
+          } : {}, behaviour.queueArguments)
         };
         var queueName = queue ? queue : getProductName() + "-" + getRandomStr();
         subChannel.assertExchange(behaviour.exchange, "topic");
@@ -72,11 +74,19 @@ function init(behaviour) {
             }
             return;
           }
-          handler(decodedMessage, message, {ack: ackFun, nack: nackFun});
+          handler(decodedMessage, message, {
+            ack: ackFun,
+            nack: nackFun
+          });
         };
-        var consumeOpts = {noAck: !behaviour.ack};
+        var consumeOpts = {
+          noAck: !behaviour.ack
+        };
         subChannel.consume(queueName, amqpHandler, consumeOpts, cb);
-        api.emit("subscribed", {key: routingKeyOrKeys, queue: queueName});
+        api.emit("subscribed", {
+          key: routingKeyOrKeys,
+          queue: queueName
+        });
       });
 
       function handleSubscribeError(err) {
@@ -93,18 +103,22 @@ function init(behaviour) {
   };
 
   api.publish = function (routingKey, message, cb) {
+    api.publishWithMeta(routingKey, message, {}, cb);
+  };
+
+  api.publishWithMeta = function (routingKey, message, meta, cb) {
     cb = cb || function () {};
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       if (connErr) {
         api.emit("error", connErr);
         return cb(connErr);
       }
-      var encodedMsg = transform.encode(message);
+      var encodedMsg = transform.encode(message, meta);
       channel.publish(behaviour.exchange, routingKey, encodedMsg.buffer, encodedMsg.props, cb);
     });
   };
 
-  api.delayedPublish = function (routingKey, message, delay, cb) {
+  api.delayedPublishWithMeta = function (routingKey, message, meta, delay, cb) {
     cb = cb || function () {};
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       var name = behaviour.exchange + "-exp-amqp-delayed-" + delay;
@@ -121,7 +135,7 @@ function init(behaviour) {
           "x-expires": delay + 60000
         }
       });
-      var encodedMsg = transform.encode(message);
+      var encodedMsg = transform.encode(message, meta);
       async.series([
         function (done) {
           channel.bindQueue(name, name, "#", {}, done);
@@ -131,6 +145,10 @@ function init(behaviour) {
         }
       ], cb);
     });
+  };
+
+  api.delayedPublish = function (routingKey, message, delay, cb) {
+    api.delayedPublishWithMeta(routingKey, message, {}, delay, cb);
   };
 
   api.deleteQueue = function (queue) {

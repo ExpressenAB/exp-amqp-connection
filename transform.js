@@ -2,22 +2,29 @@
 
 var JSON_TYPE = "application/json";
 
-function encode(body) {
+function encode(body, meta) {
+
+  var message = {
+    props: meta,
+    buffer: {}
+  };
+
   if (typeof body === "string") {
-    return {buffer: new Buffer(body, "utf8")};
+    message.buffer = new Buffer(body, "utf8");
   } else if (body instanceof Buffer) {
-    return {buffer: body};
+    message.buffer = body;
   } else {
-    return {
-      props: {contentType: "application/json"},
-      buffer: new Buffer(JSON.stringify(body), "utf8")
-    };
+    if (!message.props) message.props = {};
+    message.props.contentType = "application/json";
+    message.buffer = new Buffer(JSON.stringify(body), "utf8");
   }
+
+  return message;
 }
 
 function decode(message) {
   var messageStr = message.content.toString("utf8");
-  if(!message.properties) {
+  if (!message.properties) {
     return messageStr;
   }
   return (message.properties.contentType === JSON_TYPE) ? JSON.parse(messageStr) : messageStr;

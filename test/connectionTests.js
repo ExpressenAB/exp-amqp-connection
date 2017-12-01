@@ -467,7 +467,7 @@ Feature("Negative acknowledgement", () => {
 
   after((done) => shutdown(broker, done));
 
-  When("We have a connection", () => {
+  Given("We have a connection", () => {
     broker = init(_.defaults({
       ack: true
     }, defaultBehaviour));
@@ -475,9 +475,8 @@ Feature("Negative acknowledgement", () => {
       console.log(err);
     });
   });
-  And("We create a subscription", (done) => {
+  And("We create a subscription that will nack one message", (done) => {
     broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
-
       received.push({
         msg: msg,
         meta: meta,
@@ -497,7 +496,7 @@ Feature("Negative acknowledgement", () => {
       }
     }, done);
   });
-  And("We publish 3 messages", () => {
+  When("We publish 3 messages", () => {
     _.times(3, (n) => broker.publish("testNackRoutingKey", {
       "msgId": n
     }));
@@ -509,6 +508,62 @@ Feature("Negative acknowledgement", () => {
     assert.equal(requeues, 1);
   });
 
+});
+
+Feature("Metadata", () => {
+
+  var receivedMessage;
+  var broker;
+  var correlationId = "123XCY";
+
+  var msgContent = {
+    "msgId": 1
+  };
+  var msgMeta = {
+    correlationId: correlationId
+  };
+
+  after((done) => shutdown(broker, done));
+
+  Given("We have a connection", () => {
+    broker = init(_.defaults({
+      ack: true
+    }, defaultBehaviour));
+    broker.on("error", (err) => {
+      console.log(err);
+    });
+  });
+  And("We create a subscription", (done) => {
+    broker.subscribeTmp("testMetaDataRoutingKey", (msg, meta, ack) => {
+      receivedMessage = {
+        content: msg,
+        meta: meta
+      };
+      ack.ack();
+    }, done);
+  });
+  When("We publish a message with a correlationId", (done) => {
+    broker.publishWithMeta("testMetaDataRoutingKey", msgContent, msgMeta);
+    waitForTruthy(() => receivedMessage, done);
+  });
+  Then("Received message should contain expected correlationId", () => {
+    assert.equal(receivedMessage.content.msgId, 1);
+    assert(receivedMessage.meta.properties.correlationId);
+    assert.equal(receivedMessage.meta.properties.correlationId, correlationId);
+  });
+  When("We publish another message with correlationId and a 0.5 second delay", () => {
+    receivedMessage = {};
+    msgContent.msgId = 2;
+    broker.delayedPublishWithMeta("testMetaDataRoutingKey", msgContent, msgMeta, 500);
+  });
+  And("We wait 0.6 seconds", (done) => {
+    setTimeout(done, 600);
+  });
+  Then("Received message should contain expected correlationId", () => {
+    assert.equal(receivedMessage.content.msgId, 2);
+    assert(receivedMessage.meta.properties.correlationId);
+    assert.equal(receivedMessage.meta.properties.correlationId, correlationId);
+  });
 });
 
 function getRabbitConnections(callback) {
