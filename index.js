@@ -46,9 +46,7 @@ function init(behaviour) {
           durable: !!queue,
           autoDelete: !queue,
           exclusive: !queue,
-          arguments: Object.assign(!queue ? {
-            "x-expires": TMP_Q_TTL
-          } : {}, behaviour.queueArguments)
+          arguments: Object.assign(!queue ? {"x-expires": TMP_Q_TTL} : {}, behaviour.queueArguments)
         };
         var queueName = queue ? queue : getProductName() + "-" + getRandomStr();
         subChannel.assertExchange(behaviour.exchange, "topic");
@@ -74,19 +72,11 @@ function init(behaviour) {
             }
             return;
           }
-          handler(decodedMessage, message, {
-            ack: ackFun,
-            nack: nackFun
-          });
+          handler(decodedMessage, message, {ack: ackFun, nack: nackFun});
         };
-        var consumeOpts = {
-          noAck: !behaviour.ack
-        };
+        var consumeOpts = {noAck: !behaviour.ack};
         subChannel.consume(queueName, amqpHandler, consumeOpts, cb);
-        api.emit("subscribed", {
-          key: routingKeyOrKeys,
-          queue: queueName
-        });
+        api.emit("subscribed", {key: routingKeyOrKeys, queue: queueName});
       });
 
       function handleSubscribeError(err) {
@@ -102,11 +92,8 @@ function init(behaviour) {
     });
   };
 
-  api.publish = function (routingKey, message, cb) {
-    api.publishWithMeta(routingKey, message, {}, cb);
-  };
-
-  api.publishWithMeta = function (routingKey, message, meta, cb) {
+  api.publish = function (routingKey, message, meta, cb) {
+    if(typeof meta === "function") cb = meta;
     cb = cb || function () {};
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       if (connErr) {
@@ -118,7 +105,8 @@ function init(behaviour) {
     });
   };
 
-  api.delayedPublishWithMeta = function (routingKey, message, meta, delay, cb) {
+  api.delayedPublish = function (routingKey, message, delay, meta, cb) {
+    if(typeof meta === "function") cb = meta;
     cb = cb || function () {};
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       var name = behaviour.exchange + "-exp-amqp-delayed-" + delay;
@@ -145,10 +133,6 @@ function init(behaviour) {
         }
       ], cb);
     });
-  };
-
-  api.delayedPublish = function (routingKey, message, delay, cb) {
-    api.delayedPublishWithMeta(routingKey, message, {}, delay, cb);
   };
 
   api.deleteQueue = function (queue) {

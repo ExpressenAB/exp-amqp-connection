@@ -23,11 +23,10 @@ function encode(body, meta) {
 }
 
 function decode(message) {
+  var props = message.properties || {};
   var messageStr = message.content.toString("utf8");
-  if (!message.properties) {
-    return messageStr;
-  }
-  return (message.properties.contentType === JSON_TYPE) ? JSON.parse(messageStr) : messageStr;
+
+  return (props.contentType === JSON_TYPE) ? JSON.parse(messageStr) : messageStr;
 }
 
 module.exports = {
