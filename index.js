@@ -59,6 +59,9 @@ function init(behaviour) {
           var ackFun = function () {
             subChannel.ack(message);
           };
+          var nackFun = function () {
+            subChannel.nack(message);
+          };
           var decodedMessage;
           try {
             decodedMessage = transform.decode(message);
@@ -69,7 +72,7 @@ function init(behaviour) {
             }
             return;
           }
-          handler(decodedMessage, message, {ack: ackFun});
+          handler(decodedMessage, message, {ack: ackFun, nack: nackFun});
         };
         var consumeOpts = {noAck: !behaviour.ack};
         subChannel.consume(queueName, amqpHandler, consumeOpts, cb);
@@ -89,19 +92,21 @@ function init(behaviour) {
     });
   };
 
-  api.publish = function (routingKey, message, cb) {
+  api.publish = function (routingKey, message, meta, cb) {
+    if(typeof meta === "function") cb = meta;
     cb = cb || function () {};
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       if (connErr) {
         api.emit("error", connErr);
         return cb(connErr);
       }
-      var encodedMsg = transform.encode(message);
+      var encodedMsg = transform.encode(message, meta);
       channel.publish(behaviour.exchange, routingKey, encodedMsg.buffer, encodedMsg.props, cb);
     });
   };
 
-  api.delayedPublish = function (routingKey, message, delay, cb) {
+  api.delayedPublish = function (routingKey, message, delay, meta, cb) {
+    if(typeof meta === "function") cb = meta;
     cb = cb || function () {};
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       var name = behaviour.exchange + "-exp-amqp-delayed-" + delay;
@@ -118,7 +123,7 @@ function init(behaviour) {
           "x-expires": delay + 60000
         }
       });
-      var encodedMsg = transform.encode(message);
+      var encodedMsg = transform.encode(message, meta);
       async.series([
         function (done) {
           channel.bindQueue(name, name, "#", {}, done);

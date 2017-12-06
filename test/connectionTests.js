@@ -384,28 +384,136 @@ Feature("Multiple connections", () => {
   });
 
   When("We publish a to first connection", (done) => {
-    broker1.publish("testRoutingKey-1", "Hello first", done);
+    broker1.publish("testRoutingKey-1", "Hello first");
+    waitForTruthy(() => received1, done);
   });
 
   And("We publish a to second connection", (done) => {
-    broker2.publish("testRoutingKey-2", "Hello second", done);
+    broker2.publish("testRoutingKey-2", "Hello second");
+    waitForTruthy(() => received2, done);
   });
 
-  Then("The first messages should arrive correctly", () => {
+  Then("The first message should arrive correctly", () => {
     assert.equal("Hello first", received1);
   });
 
-  Then("And the second messages should arrive correctly", () => {
+  And("The second messages should arrive correctly", () => {
     assert.equal("Hello second", received2);
+  });
+});
+
+Feature("Negative acknowledgement", () => {
+
+  var received = [];
+  var broker;
+  var requeues = 0;
+
+  after((done) => shutdown(broker, done));
+
+  Given("We have a connection", () => {
+    broker = init(_.defaults({
+      ack: true
+    }, defaultBehaviour));
+    broker.on("error", (err) => {
+      console.log(err);
+    });
+  });
+  And("We create a subscription that will nack one message", (done) => {
+    broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
+      received.push({
+        msg: msg,
+        meta: meta,
+        ack: ack
+      });
+
+      var isNackMessage = msg.msgId === 2;
+      var requeued = isNackMessage && received.length > 3;
+
+      if (isNackMessage && !requeued) {
+        ack.nack();
+      } else {
+        ack.ack();
+      }
+      if (requeued) {
+        requeues++;
+      }
+    }, done);
+  });
+  When("We publish 3 messages", () => {
+    _.times(3, (n) => broker.publish("testNackRoutingKey", {
+      "msgId": n
+    }));
+  });
+  Then("There should be 4 received messages", (done) => {
+    waitForTruthy(() => received.length === 4, done);
+  });
+  And("One message should have been requeued", () => {
+    assert.equal(requeues, 1);
+  });
+
+});
+Feature("Metadata", () => {
+
+  var receivedMessage;
+  var broker;
+  var correlationId = "123XCY";
+
+  var msgContent = {
+    "msgId": 1
+  };
+  var msgMeta = {
+    correlationId: correlationId
+  };
+
+  after((done) => shutdown(broker, done));
+
+  Given("We have a connection", () => {
+    broker = init(_.defaults({
+      ack: true
+    }, defaultBehaviour));
+    broker.on("error", (err) => {
+      console.log(err);
+    });
+  });
+  And("We create a subscription", (done) => {
+    broker.subscribeTmp("testMetaDataRoutingKey", (msg, meta, ack) => {
+      receivedMessage = {
+        content: msg,
+        meta: meta
+      };
+      ack.ack();
+    }, done);
+  });
+  When("We publish a message with a correlationId", (done) => {
+    broker.publish("testMetaDataRoutingKey", msgContent, msgMeta);
+    waitForTruthy(() => receivedMessage, done);
+  });
+  Then("Received message should contain expected correlationId", () => {
+    assert.equal(receivedMessage.content.msgId, 1);
+    assert(receivedMessage.meta.properties.correlationId);
+    assert.equal(receivedMessage.meta.properties.correlationId, correlationId);
+  });
+  When("We publish another message with correlationId and a 0.5 second delay", () => {
+    receivedMessage = {};
+    msgContent.msgId = 2;
+    broker.delayedPublish("testMetaDataRoutingKey", msgContent, 500, msgMeta);
+  });
+  And("We wait 0.6 seconds", (done) => {
+    setTimeout(done, 600);
+  });
+  Then("Received message should contain expected correlationId", () => {
+    assert.equal(receivedMessage.content.msgId, 2);
+    assert(receivedMessage.meta.properties.correlationId);
+    assert.equal(receivedMessage.meta.properties.correlationId, correlationId);
   });
 });
 
 function getRabbitConnections(callback) {
   request.get(adminUrl() + "/api/connections",
-              (err, resp, connections) => {
-                if (err) return callback(err);
-                callback(null, JSON.parse(connections));
-              });
+    (err, resp, connections) => {
+      if (err) return callback(err);
+      callback(null, JSON.parse(connections));
+    });
 }
 
 function killRabbitConnections() {
