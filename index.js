@@ -59,8 +59,8 @@ function init(behaviour) {
           var ackFun = function () {
             subChannel.ack(message);
           };
-          var nackFun = function () {
-            subChannel.nack(message);
+          var nackFun = function (requeue) {
+            subChannel.nack(message, false, requeue);
           };
           var decodedMessage;
           try {

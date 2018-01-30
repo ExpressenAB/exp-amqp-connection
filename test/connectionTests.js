@@ -404,51 +404,96 @@ Feature("Multiple connections", () => {
 
 Feature("Negative acknowledgement", () => {
 
-  var received = [];
-  var broker;
-  var requeues = 0;
+  Scenario("Default requeue behaviour", () => {
+    var received = [];
+    var broker;
+    var requeues = 0;
 
-  after((done) => shutdown(broker, done));
+    after((done) => shutdown(broker, done));
 
-  Given("We have a connection", () => {
-    broker = init(_.defaults({
-      ack: true
-    }, defaultBehaviour));
-    broker.on("error", (err) => {
-      console.log(err);
+    Given("We have a connection", () => {
+      broker = init(_.defaults({
+        ack: true
+      }, defaultBehaviour));
+    });
+    And("We create a subscription that will nack one message", (done) => {
+      broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
+        received.push({
+          msg: msg,
+          meta: meta,
+          ack: ack
+        });
+
+        var isNackMessage = msg.msgId === 0;
+        var requeued = isNackMessage && received.length > 1;
+
+        if (isNackMessage && !requeued) {
+          ack.nack();
+        } else {
+          ack.ack();
+        }
+        if (requeued) {
+          requeues++;
+        }
+      }, done);
+    });
+    When("We publish 3 messages", () => {
+      _.times(3, (n) => broker.publish("testNackRoutingKey", {
+        "msgId": n
+      }));
+    });
+    Then("There should be 4 received messages", (done) => {
+      waitForTruthy(() => received.length === 4, done);
+    });
+    And("One message should have been requeued", () => {
+      assert.equal(requeues, 1);
     });
   });
-  And("We create a subscription that will nack one message", (done) => {
-    broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
-      received.push({
-        msg: msg,
-        meta: meta,
-        ack: ack
-      });
 
-      var isNackMessage = msg.msgId === 2;
-      var requeued = isNackMessage && received.length > 3;
+  Scenario("Not requeueing nacked messages", () => {
+    var received = [];
+    var broker;
+    var requeues = 0;
 
-      if (isNackMessage && !requeued) {
-        ack.nack();
-      } else {
-        ack.ack();
-      }
-      if (requeued) {
-        requeues++;
-      }
-    }, done);
-  });
-  When("We publish 3 messages", () => {
-    _.times(3, (n) => broker.publish("testNackRoutingKey", {
-      "msgId": n
-    }));
-  });
-  Then("There should be 4 received messages", (done) => {
-    waitForTruthy(() => received.length === 4, done);
-  });
-  And("One message should have been requeued", () => {
-    assert.equal(requeues, 1);
+    after((done) => shutdown(broker, done));
+
+    Given("We have a connection", () => {
+      broker = init(_.defaults({
+        ack: true
+      }, defaultBehaviour));
+    });
+    And("We create a subscription that will nack one message with requeue false", (done) => {
+      broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
+        received.push({
+          msg: msg,
+          meta: meta,
+          ack: ack
+        });
+
+        var isNackMessage = msg.msgId === 0;
+        var requeued = isNackMessage && received.length > 1;
+
+        if (isNackMessage && !requeued) {
+          ack.nack(false);
+        } else {
+          ack.ack();
+        }
+        if (requeued) {
+          requeues++;
+        }
+      }, done);
+    });
+    When("We publish 3 messages", () => {
+      _.times(3, (n) => broker.publish("testNackRoutingKey", {
+        "msgId": n
+      }));
+    });
+    Then("There should be 3 received messages", (done) => {
+      waitForTruthy(() => received.length === 3, done);
+    });
+    And("No messages should have been requeued", () => {
+      assert.equal(requeues, 0);
+    });
   });
 
 });
