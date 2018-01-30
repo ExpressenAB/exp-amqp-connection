@@ -497,6 +497,76 @@ Feature("Negative acknowledgement", () => {
   });
 
 });
+
+Feature("Dead letter exchange", () => {
+
+  var received = [];
+  var broker;
+  var deadLetterReceived = [];
+  var deadLetterBroker;
+  var requeues = 0;
+
+  after((done) => shutdown(broker, done));
+
+  Given("We have a connection with a dead letter exchange", () => {
+    broker = init(_.defaults({
+      ack: true,
+      queueArguments: {
+        "x-dead-letter-exchange": "DLX"
+      }
+    }, defaultBehaviour));
+  });
+  And("We have a connection to said dead letter exchange", () => {
+    deadLetterBroker = init(_.defaults({
+      exchange: "DLX"
+    }, defaultBehaviour));
+  });
+  And("We create a subscription that will nack one message without requeueing", (done) => {
+    broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
+      received.push({
+        msg: msg,
+        meta: meta,
+        ack: ack
+      });
+
+      var isNackMessage = msg.msgId === 0;
+      var requeued = isNackMessage && received.length > 1;
+
+      if (isNackMessage && !requeued) {
+        ack.nack(false);
+      } else {
+        ack.ack();
+      }
+      if (requeued) {
+        requeues++;
+      }
+    }, done);
+  });
+  And("We create a subscription to the dead letter exchange", (done) => {
+    deadLetterBroker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
+      deadLetterReceived.push({
+        msg: msg,
+        meta: meta,
+        ack: ack
+      });
+    }, done);
+  });
+  When("We publish 3 messages", () => {
+    _.times(3, (n) => broker.publish("testNackRoutingKey", {
+      "msgId": n
+    }));
+  });
+  Then("There should be 3 received messages", (done) => {
+    waitForTruthy(() => received.length === 3, done);
+  });
+  And("No messages should have been requeued", () => {
+    assert.equal(requeues, 0);
+  });
+  And("There should be 1 received dead letter", (done) => {
+    waitForTruthy(() => deadLetterReceived.length === 1, done);
+  });
+});
+
 Feature("Metadata", () => {
 
   var receivedMessage;
