@@ -404,21 +404,124 @@ Feature("Multiple connections", () => {
 
 Feature("Negative acknowledgement", () => {
 
+  Scenario("Default requeue behaviour", () => {
+    var received = [];
+    var broker;
+    var requeues = 0;
+
+    after((done) => shutdown(broker, done));
+
+    Given("We have a connection", () => {
+      broker = init(_.defaults({
+        ack: true
+      }, defaultBehaviour));
+    });
+    And("We create a subscription that will nack one message", (done) => {
+      broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
+        received.push({
+          msg: msg,
+          meta: meta,
+          ack: ack
+        });
+
+        var isNackMessage = msg.msgId === 0;
+        var requeued = isNackMessage && received.length > 1;
+
+        if (isNackMessage && !requeued) {
+          ack.nack();
+        } else {
+          ack.ack();
+        }
+        if (requeued) {
+          requeues++;
+        }
+      }, done);
+    });
+    When("We publish 3 messages", () => {
+      _.times(3, (n) => broker.publish("testNackRoutingKey", {
+        "msgId": n
+      }));
+    });
+    Then("There should be 4 received messages", (done) => {
+      waitForTruthy(() => received.length === 4, done);
+    });
+    And("One message should have been requeued", () => {
+      assert.equal(requeues, 1);
+    });
+  });
+
+  Scenario("Not requeueing nacked messages", () => {
+    var received = [];
+    var broker;
+    var requeues = 0;
+
+    after((done) => shutdown(broker, done));
+
+    Given("We have a connection", () => {
+      broker = init(_.defaults({
+        ack: true
+      }, defaultBehaviour));
+    });
+    And("We create a subscription that will nack one message with requeue false", (done) => {
+      broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
+        received.push({
+          msg: msg,
+          meta: meta,
+          ack: ack
+        });
+
+        var isNackMessage = msg.msgId === 0;
+        var requeued = isNackMessage && received.length > 1;
+
+        if (isNackMessage && !requeued) {
+          ack.nack(false);
+        } else {
+          ack.ack();
+        }
+        if (requeued) {
+          requeues++;
+        }
+      }, done);
+    });
+    When("We publish 3 messages", () => {
+      _.times(3, (n) => broker.publish("testNackRoutingKey", {
+        "msgId": n
+      }));
+    });
+    Then("There should be 3 received messages", (done) => {
+      waitForTruthy(() => received.length === 3, done);
+    });
+    And("No messages should have been requeued", () => {
+      assert.equal(requeues, 0);
+    });
+  });
+
+});
+
+Feature("Dead letter exchange", () => {
+
   var received = [];
   var broker;
+  var deadLetterReceived = [];
+  var deadLetterBroker;
   var requeues = 0;
 
   after((done) => shutdown(broker, done));
 
-  Given("We have a connection", () => {
+  Given("We have a connection with a dead letter exchange", () => {
     broker = init(_.defaults({
-      ack: true
+      ack: true,
+      queueArguments: {
+        "x-dead-letter-exchange": "DLX"
+      }
     }, defaultBehaviour));
-    broker.on("error", (err) => {
-      console.log(err);
-    });
   });
-  And("We create a subscription that will nack one message", (done) => {
+  And("We have a connection to said dead letter exchange", () => {
+    deadLetterBroker = init(_.defaults({
+      exchange: "DLX"
+    }, defaultBehaviour));
+  });
+  And("We create a subscription that will nack one message without requeueing", (done) => {
     broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
       received.push({
         msg: msg,
@@ -426,11 +529,11 @@ Feature("Negative acknowledgement", () => {
         ack: ack
       });
 
-      var isNackMessage = msg.msgId === 2;
-      var requeued = isNackMessage && received.length > 3;
+      var isNackMessage = msg.msgId === 0;
+      var requeued = isNackMessage && received.length > 1;
 
       if (isNackMessage && !requeued) {
-        ack.nack();
+        ack.nack(false);
       } else {
         ack.ack();
       }
@@ -439,19 +542,31 @@ Feature("Negative acknowledgement", () => {
       }
     }, done);
   });
+  And("We create a subscription to the dead letter exchange", (done) => {
+    deadLetterBroker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
+      deadLetterReceived.push({
+        msg: msg,
+        meta: meta,
+        ack: ack
+      });
+    }, done);
+  });
   When("We publish 3 messages", () => {
     _.times(3, (n) => broker.publish("testNackRoutingKey", {
       "msgId": n
     }));
   });
-  Then("There should be 4 received messages", (done) => {
-    waitForTruthy(() => received.length === 4, done);
+  Then("There should be 3 received messages", (done) => {
+    waitForTruthy(() => received.length === 3, done);
   });
-  And("One message should have been requeued", () => {
-    assert.equal(requeues, 1);
+  And("No messages should have been requeued", () => {
+    assert.equal(requeues, 0);
   });
-
+  And("There should be 1 received dead letter", (done) => {
+    waitForTruthy(() => deadLetterReceived.length === 1, done);
+  });
 });
+
 Feature("Metadata", () => {
 
   var receivedMessage;
