@@ -14,6 +14,8 @@ var dummyLogger = {
 };
 
 var defaultBehaviour = {
+  exchangeType: "topic",
+  exchangeOptions: {},
   reuse: "default",
   ack: false,
   confirm: false,
@@ -49,7 +51,7 @@ function init(behaviour) {
           arguments: Object.assign(!queue ? {"x-expires": TMP_Q_TTL} : {}, behaviour.queueArguments)
         };
         var queueName = queue ? queue : getProductName() + "-" + getRandomStr();
-        subChannel.assertExchange(behaviour.exchange, "topic");
+        subChannel.assertExchange(behaviour.exchange, behaviour.exchangeType, behaviour.exchangeOptions);
         subChannel.assertQueue(queueName, queueOpts);
         routingKeys.forEach(function (key) {
           subChannel.bindQueue(queueName, behaviour.exchange, key, {});
