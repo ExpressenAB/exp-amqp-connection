@@ -576,17 +576,18 @@ Feature("Exchange type and options", () => {
   Scenario("Alternate exchange", () => {
     var broker;
     var alternateBroker;
-    var alternateReceived = [];
+    var alternateReceived;
     var msgContent = {
-      msgId: "1"
+      msgId: 1
     };
 
     after((done) => shutdown(broker, () => shutdown(alternateBroker, done)));
 
     Given("We have a connection", () => {
       broker = init(_.defaults({
+        exchange: "pe",
         exchangeOptions: {
-          alternateExchange: "e2"
+          alternateExchange: "ae"
         }
       }, defaultBehaviour));
       broker.on("error", console.error);
@@ -595,18 +596,14 @@ Feature("Exchange type and options", () => {
     And("A connection to an alternate exchange", () => {
       alternateBroker = init(_.defaults({
         reuse: "alternate",
-        exchange: "e2"
+        exchange: "ae"
       }, defaultBehaviour));
       alternateBroker.on("error", console.error);
     });
 
     And("A subscription to alternate exchange", (done) => {
-      alternateBroker.subscribeTmp("testAlternateRoutingKey", (msg, meta, ack) => {
-        alternateReceived.push({
-          msg: msg,
-          meta: meta,
-          ack: ack
-        });
+      alternateBroker.subscribeTmp("testAlternateRoutingKey", (msg) => {
+        alternateReceived = msg;
       }, done);
     });
 
@@ -615,8 +612,46 @@ Feature("Exchange type and options", () => {
     });
 
     Then("We receive it on the alternate exchange", () => {
-      waitForTruthy(() => alternateReceived.length === 1, () => {
-        alternateReceived[0].msg.should.eql(msgContent);
+      waitForTruthy(() => alternateReceived, () => {
+        assert.equal(alternateReceived.msgId, 1);
+      });
+    });
+  });
+
+  Scenario("Exchange type", () => {
+    var broker;
+    var received1;
+    var received2;
+    var msgContent = {
+      msgId: 1
+    };
+
+    after((done) => shutdown(broker, done));
+
+    Given("We have a connection to a fanout exchange", () => {
+      broker = init(_.defaults({
+        exchange: "fanout",
+        exchangeType: "fanout"
+      }, defaultBehaviour));
+      broker.on("error", console.error);
+    });
+
+    And("A subscription", (done) => {
+      broker.subscribeTmp("foo", (msg) => { received1 = msg; }, done);
+    });
+
+    And("Another subscription", (done) => {
+      broker.subscribeTmp("bar", (msg) => { received2 = msg; }, done);
+    });
+
+    When("We publish a message", (done) => {
+      broker.publish("baz", msgContent, done);
+    });
+
+    Then("We receive it on both queues, disregarding routing key", () => {
+      waitForTruthy(() => received1 && received2, () => {
+        assert.equal(received1.msgId, 1);
+        assert.equal(received2.msgId, 1);
       });
     });
   });
