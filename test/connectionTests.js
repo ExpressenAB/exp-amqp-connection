@@ -27,7 +27,12 @@ Feature("Connect", () => {
   Scenario("Bad connection", () => {
     var broker;
     var badPortBehaviour;
-    after((done) => { shutdown(broker, done); });
+    after((done) => {
+      // Ignore err from shutdown to bad port
+      shutdown(broker, (err) => { // eslint-disable-line no-unused-vars
+        done();
+      });
+    });
     When("Trying to connect to bad port", () => {
       badPortBehaviour = Object.assign({}, defaultBehaviour, {reuse: "bad-port", url: "amqp://" + RABBIT_HOST + ":6666"});
     });
@@ -564,6 +569,56 @@ Feature("Dead letter exchange", () => {
   });
   And("There should be 1 received dead letter", (done) => {
     waitForTruthy(() => deadLetterReceived.length === 1, done);
+  });
+});
+
+Feature("Exchange type and options", () => {
+  Scenario("Alternate exchange", () => {
+    var broker;
+    var alternateBroker;
+    var alternateReceived = [];
+    var msgContent = {
+      msgId: "1"
+    };
+
+    after((done) => shutdown(broker, () => shutdown(alternateBroker, done)));
+
+    Given("We have a connection", () => {
+      broker = init(_.defaults({
+        exchangeOptions: {
+          alternateExchange: "e2"
+        }
+      }, defaultBehaviour));
+      broker.on("error", console.error);
+    });
+
+    And("A connection to an alternate exchange", () => {
+      alternateBroker = init(_.defaults({
+        reuse: "alternate",
+        exchange: "e2"
+      }, defaultBehaviour));
+      alternateBroker.on("error", console.error);
+    });
+
+    And("A subscription to alternate exchange", (done) => {
+      alternateBroker.subscribeTmp("testAlternateRoutingKey", (msg, meta, ack) => {
+        alternateReceived.push({
+          msg: msg,
+          meta: meta,
+          ack: ack
+        });
+      }, done);
+    });
+
+    When("We publish a message", (done) => {
+      broker.publish("testAlternateRoutingKey", msgContent, done);
+    });
+
+    Then("We receive it on the alternate exchange", () => {
+      waitForTruthy(() => alternateReceived.length === 1, () => {
+        alternateReceived[0].msg.should.eql(msgContent);
+      });
+    });
   });
 });
 

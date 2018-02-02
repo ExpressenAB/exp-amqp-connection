@@ -146,7 +146,7 @@ function init(behaviour) {
   api.shutdown = function (cb) {
     cb = cb || function () {};
     bootstrap(behaviour, api, function (connErr, conn) {
-      if (connErr) return cb();
+      if (connErr) return cb(connErr);
       conn.close(cb);
     });
   };
