@@ -51,6 +51,7 @@ function init(behaviour) {
           arguments: Object.assign(!queue ? {"x-expires": TMP_Q_TTL} : {}, behaviour.queueArguments)
         };
         var queueName = queue ? queue : getProductName() + "-" + getRandomStr();
+        // Assert exchange for subscriber channel with same options as in publisher (see bootstrap)
         subChannel.assertExchange(behaviour.exchange, behaviour.exchangeType, behaviour.exchangeOptions);
         subChannel.assertQueue(queueName, queueOpts);
         routingKeys.forEach(function (key) {
