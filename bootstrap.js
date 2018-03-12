@@ -51,7 +51,10 @@ function doConnect(behaviour, listener, callback) {
       savedConns[behaviour.reuse] = null;
     };
     newConnection.on("error", errorHandler);
-    newConnection.on("close", errorHandler);
+    newConnection.on("close", function () {
+      listener.emit("close");
+      savedConns[behaviour.reuse] = null;
+    });
     var onChannel = function (channelErr, newChannel) {
       if (channelErr) return callback(channelErr);
       if (behaviour.exchange) {
