@@ -1,10 +1,5 @@
 "use strict";
 
-// Simplest way to subscribe. Start the subscription and don't listen to "error" events
-// from the broker. This will cause the process to crash in case of errors.
-// This of course requires a process manager such as "pm2" or "forever" in place
-// to restart the process.
-
 var init = require("exp-amqp-connection");
 
 var amqpBehaviour = {
@@ -16,12 +11,23 @@ var amqpBehaviour = {
 
 var broker = init(amqpBehaviour);
 
-broker.on("connected", function () {
+broker.on("connected", function() {
   console.log("Connected to amqp server");
 });
 
-broker.on("subscribed", function (subscription) {
+broker.on("subscribed", function(subscription) {
   console.log("Subscription started:", subscription);
+});
+
+// Simplest way to deal with errors: abort the process.
+// Assuming of course that you have a scheduler or process manager (kubernetes,
+// pm2, forever etc) in place to restart your process.
+//
+// NOTE: See the "subcribe-reconnect" example on how to handle errors without
+// restarting the process.
+broker.on("error", function(error) {
+  console.error("Amqp error", error, ", aborting process.");
+  process.exit(1);
 });
 
 function handleMessage(message, meta, notify) {
@@ -31,6 +37,6 @@ function handleMessage(message, meta, notify) {
 
 broker.subscribe("some-routing-key", "some-queue", handleMessage);
 
-setInterval(function () {
+setInterval(function() {
   broker.publish("some-routing-key", "Hello " + new Date());
 }, 1000);
