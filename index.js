@@ -141,6 +141,16 @@ function init(behaviour) {
     });
   };
 
+  api.purgeQueue = function (queue, cb) {
+    bootstrap(behaviour, api, function (connErr, conn, channel) {
+      if (connErr) {
+        api.emit("error", connErr);
+        return cb(connErr);
+      }
+      return channel.purgeQueue(queue, cb);
+    });
+  };
+
   api.shutdown = function (cb) {
     cb = cb || function () {};
     bootstrap(behaviour, api, function (connErr, conn) {
