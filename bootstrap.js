@@ -55,7 +55,7 @@ function doConnect(behaviour, listener, callback) {
     var onChannel = function (channelErr, newChannel) {
       if (channelErr) return callback(channelErr);
       if (behaviour.exchange) {
-        newChannel.assertExchange(behaviour.exchange, "topic");
+        newChannel.assertExchange(behaviour.exchange, behaviour.exchangeType, behaviour.exchangeOptions);
       }
       var handle = {connection: newConnection, channel: newChannel};
       savedConns[behaviour.reuse] = handle;
