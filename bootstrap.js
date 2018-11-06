@@ -4,71 +4,75 @@ var amqp = require("amqplib/callback_api");
 var url = require("url");
 var EventEmitter = require("events");
 var qs = require("querystring");
+var async = require("async");
 
-var savedConns = {};
+var savedConn;
 
-function connect(behaviour, listener, callback) {
-  if (behaviour.reuse && attemptReuse(behaviour.reuse, callback)) {
+function bootstrap(behaviour, callback) {
+  if (getSavedConnection(callback)) {
     return;
   }
-  return doConnect(behaviour, listener, callback);
+  return doConnect(behaviour, callback);
 }
 
-function attemptReuse(key, callback) {
-  var savedConn = savedConns[key];
+function getSavedConnection(callback) {
+  // We have a connection ready, just use it!
   if (savedConn && savedConn.connection) {
-    callback(null, savedConn.connection, savedConn.channel);
+    callback(null, savedConn);
     return true;
   }
+
+  // A saved connection is created but not yet ready, wait for it to finish
   if (savedConn) {
-    savedConn.once("bootstrapped", function (error, handle) {
+    savedConn.once("bootstrapped", function(error, handle) {
       if (error) return callback(error);
-      callback(null, handle.connection, handle.channel);
+      callback(null, handle);
     });
     return true;
   }
+
+  // No saved connection is available
   return false;
 }
 
-function doConnect(behaviour, listener, callback) {
+function doConnect(behaviour, callback) {
+
   var urlObj = url.parse(behaviour.url);
-  urlObj.search = qs.stringify(Object.assign({heartbeat: behaviour.heartbeat}, qs.parse(urlObj.search)));
+  urlObj.search = qs.stringify(Object.assign({ heartbeat: behaviour.heartbeat }, qs.parse(urlObj.search)));
   var amqpUrl = url.format(urlObj);
-  var reuse = new EventEmitter();
-  if (behaviour.reuse) {
-    savedConns[behaviour.reuse] = reuse;
-  }
-  var opts = {clientProperties: {product: behaviour.productName}};
-  amqp.connect(amqpUrl, opts, function (connErr, newConnection) {
+  var pendingConn = new EventEmitter();
+  savedConn = pendingConn;
+  var opts = { clientProperties: { product: behaviour.productName } };
+  amqp.connect(amqpUrl, opts, function(connErr, conn) {
     if (connErr) {
-      savedConns[behaviour.reuse] = null;
-      reuse.emit("bootstrapped", connErr);
-      listener.emit("error", connErr);
+      savedConn = null;
+      pendingConn.emit("bootstrapped", connErr);
       return callback(connErr);
     }
-    var errorHandler = function (error) {
-      listener.emit("error", error);
-      savedConns[behaviour.reuse] = null;
+    var errorHandler = function() {
+      savedConn = null;
     };
-    newConnection.on("error", errorHandler);
-    newConnection.on("close", errorHandler);
-    var onChannel = function (channelErr, newChannel) {
-      if (channelErr) return callback(channelErr);
-      if (behaviour.exchange) {
-        newChannel.assertExchange(behaviour.exchange, "topic");
+    conn.on("error", errorHandler);
+    conn.on("close", errorHandler);
+
+    var createPubChannel =
+      behaviour.confirm ? conn.createConfirmChannel.bind(conn) : conn.createChannel.bind(conn);
+    var createSubChannel = conn.createChannel.bind(conn);
+    async.series([createPubChannel, createSubChannel], function(channelErr, newChannels) {
+      if (channelErr) {
+        savedConn = null;
+        pendingConn.emit("bootstrapped", channelErr);
+        return callback(channelErr);
       }
-      var handle = {connection: newConnection, channel: newChannel};
-      savedConns[behaviour.reuse] = handle;
-      reuse.emit("bootstrapped", null, handle);
-      listener.emit("connected");
-      return callback(null, newConnection, newChannel);
-    };
-    if (behaviour.confirm) {
-      newConnection.createConfirmChannel(onChannel);
-    } else {
-      newConnection.createChannel(onChannel);
-    }
+      var pubChannel = newChannels[0];
+      var subChannel = newChannels[1];
+      pubChannel.assertExchange(behaviour.exchange, "topic");
+      var handle = { connection: conn, pubChannel: pubChannel, subChannel: subChannel };
+      savedConn = handle;
+      pendingConn.emit("bootstrapped", null, handle);
+      return callback(null, Object.assign({}, handle, { virgin: true }));
+    });
   });
 }
 
-module.exports = connect;
+module.exports = bootstrap;
