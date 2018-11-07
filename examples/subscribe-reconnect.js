@@ -2,7 +2,7 @@
 
 // Start a subscription. Restarts the subscription in case of errors
 
-const init = require("exp-amqp-connection");
+const init = require("..");
 
 const amqpBehaviour = {
   url: "amqp://localhost",

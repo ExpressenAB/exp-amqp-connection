@@ -91,16 +91,19 @@ Feature("Subscribe", () => {
   Scenario("Multiple routing keys", () => {
     const messages = [];
     let broker;
+
+    before((done) => deleteRabbitQueue("testMultipleRoutingKeys", done));
     after((done) => shutdown(broker, done));
     const handler = (message) => {
+      console.log(message);
       messages.push(message.testData);
     };
     When("We have a connection", () => {
       broker = init(defaultBehaviour);
     });
     And("We create a subscription for routing key 1 and 2", (done) => {
-      broker.on("subscribed", () => done());
-      broker.subscribe(["rk1", "rk2"], "testQ2", handler);
+      broker.once("subscribed", () => done());
+      broker.subscribe(["rk1", "rk2"], "testMultipleRoutingKeys", handler);
     });
     When("We publish a message with routing key 1", (done) => {
       broker.publish("rk1", { testData: "m1" });
@@ -268,7 +271,8 @@ Feature("Subscribe", () => {
         error = err;
       });
       broker.on("subscribed", (sub) => {
-        if (sub.attempt === 0) done();
+        console.log(sub)
+        if (sub.attempt === 1) done();
       });
       broker.subscribe("testRoutingKey", "testQ2", () => {});
     });
@@ -388,7 +392,7 @@ Feature("Multiple connections", () => {
 
   And("We create a subscription to first connection", (done) => {
     broker1.on("subscribed", (sub) => {
-      if (sub.attempt === 0) done();
+      if (sub.attempt === 1) done();
     });
     broker1.subscribeTmp("testRoutingKey-1", (msg) => {
       received1 = msg;
@@ -397,7 +401,7 @@ Feature("Multiple connections", () => {
 
   And("We create a subscription to first connection", (done) => {
     broker2.on("subscribed", (sub) => {
-      if (sub.attempt === 0) done();
+      if (sub.attempt === 1) done();
     });
     broker2.subscribeTmp("testRoutingKey-2", (msg) => {
       received2 = msg;

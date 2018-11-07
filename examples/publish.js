@@ -1,6 +1,6 @@
 "use strict";
 
-const init = require("exp-amqp-connection");
+const init = require("..");
 
 const amqpBehaviour = {
   url: "amqp://localhost",

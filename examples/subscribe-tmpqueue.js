@@ -3,7 +3,7 @@
 // Subscribe with temporary queue which will
 // be deleted once the amqp connection is lost.
 
-const init = require("exp-amqp-connection");
+const init = require("..");
 
 const amqpBehaviour = {
   url: "amqp://localhost",
@@ -12,6 +12,8 @@ const amqpBehaviour = {
 };
 
 const broker = init(amqpBehaviour);
+
+broker.on("error", (err) => console.log(`AMQP Error: ${err}`));
 
 broker.on("connected", () => {
   console.log("Connected to amqp server");

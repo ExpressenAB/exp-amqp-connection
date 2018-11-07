@@ -44,35 +44,9 @@ function init(behaviour) {
     });
   };
 
-  api.subscribeTmp = function(routingKeyOrKeys, handler) {
-    api.subscribe(routingKeyOrKeys, undefined, handler);
-  };
-
-  api.subscribe = function(routingKeyOrKeys, queue, handler, attempt) {
-    attempt = attempt || 0;
-    let resubTimer;
-
-    // try to resubscribe in 5 secs on error.
-    const resubscribeOnError = (err) => {
-      if (err && !resubTimer && behaviour.resubscribeOnError) {
-        behaviour.logger.info("Amqp error received. Resubscribing in 5 secs.");
-        resubTimer = setTimeout(() => {
-          api.subscribe(routingKeyOrKeys, queue, handler, attempt + 1);
-          resubTimer = null;
-        }, 5000);
-      }
-    };
-    // Only add resubscribe listener on first attempt.
-    if (attempt === 0) {
-      api.on("error", resubscribeOnError);
-    }
-
+  const doSubscribe = function(routingKeyOrKeys, queue, handler, attempt) {
     doBootstrap((bootstrapErr, bootstrapRes) => {
-      // failed to connect - abort
-      if (bootstrapErr) {
-        resubscribeOnError(bootstrapErr);
-        return;
-      }
+      if (bootstrapErr) return; // Ok to ignore, emitted as error in doBootstrap()
       const routingKeys = Array.isArray(routingKeyOrKeys) ? routingKeyOrKeys : [routingKeyOrKeys];
       const subChannel = bootstrapRes.subChannel;
       subChannel.prefetch(behaviour.prefetch);
@@ -89,7 +63,6 @@ function init(behaviour) {
       const amqpHandler = function(message) {
         if (!message) {
           api.emit("error", "Subscription cancelled");
-          return resubscribeOnError("Subscription cancelled");
         }
         const ackFun = () => subChannel.ack(message);
         const nackFun = (requeue) => subChannel.nack(message, false, requeue);
@@ -108,9 +81,31 @@ function init(behaviour) {
       const consumeOpts = { noAck: !behaviour.ack };
       subChannel.consume(queueName, amqpHandler, consumeOpts, (err) => {
         if (err) return api.emit("error", err);
-        api.emit("subscribed", { key: routingKeyOrKeys, queue: queueName, attempt: attempt });
+        api.emit("subscribed", { key: routingKeyOrKeys, queue: queueName, attempt });
       });
     });
+  };
+
+  api.subscribeTmp = function(routingKeyOrKeys, handler) {
+    api.subscribe(routingKeyOrKeys, undefined, handler);
+  };
+
+  api.subscribe = function(routingKeyOrKeys, queue, handler) {
+    let resubTimer;
+    let attempt = 1;
+    const resubscribeOnError = (err) => {
+      if (err && !resubTimer && behaviour.resubscribeOnError) {
+        behaviour.logger.info("Amqp error received. Resubscribing in 5 secs.", err.message);
+        resubTimer = setTimeout(() => {
+          attempt = attempt + 1;
+          doSubscribe(routingKeyOrKeys, queue, handler, attempt);
+          resubTimer = null;
+        }, 5000);
+      }
+    };
+
+    doSubscribe(routingKeyOrKeys, queue, handler, attempt);
+    api.on("error", resubscribeOnError);
   };
 
   api.publish = function(routingKey, message, meta, cb) {
