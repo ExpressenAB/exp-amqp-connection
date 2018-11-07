@@ -3,17 +3,17 @@
 // Subscribe with temporary queue which will
 // be deleted once the amqp connection is lost.
 
-var init = require("exp-amqp-connection");
+const init = require("exp-amqp-connection");
 
-var amqpBehaviour = {
+const amqpBehaviour = {
   url: "amqp://localhost",
   exchange: "my-excchange",
   ack: "true"
 };
 
-var broker = init(amqpBehaviour);
+const broker = init(amqpBehaviour);
 
-broker.on("connected", function () {
+broker.on("connected", () => {
   console.log("Connected to amqp server");
 });
 
@@ -24,6 +24,6 @@ function handleMessage(message, meta, notify) {
 
 broker.subscribeTmp("some-routing-key", handleMessage);
 
-setInterval(function () {
-  broker.publish("some-routing-key", "Hello " + new Date());
+setInterval(() => {
+  broker.publish("some-routing-key", `Hello ${new Date()}`);
 }, 1000);
