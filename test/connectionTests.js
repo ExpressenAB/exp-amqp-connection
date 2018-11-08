@@ -7,9 +7,10 @@ const amqp = require("../index.js");
 const assert = require("assert");
 const async = require("async");
 const _ = require("lodash");
+const URL = require("url").URL;
 
-const RABBIT_HOST = "localhost";
-const defaultBehaviour = { exchange: "e1", confirm: true, url: `amqp://${RABBIT_HOST}` };
+const rabbitUrl = process.env.RABBIT_URL || "amqp://localhost";
+const defaultBehaviour = { exchange: "e1", confirm: true, url: rabbitUrl };
 
 Feature("Connect", () => {
 
@@ -29,7 +30,7 @@ Feature("Connect", () => {
     let badPortBehaviour;
     after((done) => shutdown(broker, done));
     When("Trying to connect to bad port", () => {
-      badPortBehaviour = Object.assign({}, defaultBehaviour, { reuse: "bad-port", url: `amqp://${RABBIT_HOST}:6666` });
+      badPortBehaviour = Object.assign({}, defaultBehaviour, { reuse: "bad-port", url: "amqp://localhost:6666" });
     });
     Then("We should get an error", (done) => {
       broker = init(badPortBehaviour);
@@ -69,17 +70,15 @@ Feature("Subscribe", () => {
       after((done) => shutdown(broker, done));
       And("We have a connection", () => {
         broker = init(defaultBehaviour);
-        broker.on("error", console.log);
       });
       And("We create a subscription", (done) => {
         broker.on("subscribed", () => done());
         broker.subscribeTmp("testRoutingKey", (msg) => {
-          console.log(msg);
           received = msg;
         });
       });
       And("We publish a message", (done) => {
-        broker.publish("testRoutingKey", test.data, console.log);
+        broker.publish("testRoutingKey", test.data);
         waitForTruthy(() => received, done);
       });
       Then("It should arrive correctly", () => {
@@ -95,7 +94,6 @@ Feature("Subscribe", () => {
     before((done) => deleteRabbitQueue("testMultipleRoutingKeys", done));
     after((done) => shutdown(broker, done));
     const handler = (message) => {
-      console.log(message);
       messages.push(message.testData);
     };
     When("We have a connection", () => {
@@ -190,7 +188,6 @@ Feature("Subscribe", () => {
       waitForTruthy(() => messages.length > 1, done);
     });
     Then("It should be delivered twice", () => {
-      console.log(messages.length);
       assert.deepEqual(["m1", "m1"], messages);
     });
     When("We publish a message with routing key 2", (done) => {
@@ -267,11 +264,9 @@ Feature("Subscribe", () => {
 
     And("We create a subscription", (done) => {
       broker.on("error", (err) => {
-        console.log(err);
         error = err;
       });
       broker.on("subscribed", (sub) => {
-        console.log(sub)
         if (sub.attempt === 1) done();
       });
       broker.subscribe("testRoutingKey", "testQ2", () => {});
@@ -615,9 +610,6 @@ Feature("Metadata", () => {
     broker = init(_.defaults({
       ack: true
     }, defaultBehaviour));
-    broker.on("error", (err) => {
-      console.log(err);
-    });
   });
   And("We create a subscription", (done) => {
     broker.on("subscribed", () => done());
@@ -685,7 +677,9 @@ function deleteResource(url, done) {
 }
 
 function adminUrl() {
-  return `http://guest:guest@${RABBIT_HOST}:15672`;
+  const url = new URL(rabbitUrl);
+  url.port = 15672;
+  return url.href.replace("amqp://", "http://");
 }
 
 function init(behaviour) {
@@ -698,7 +692,7 @@ function shutdown(broker, done) {
       broker.removeAllListeners("error");
       broker.on("error", () => {});
       broker.shutdown((err) => {
-        if (err) console.log(err);
+        if (err) console.log("Ignoring shutdown error", err.message);
         done();
       });
     } catch (err) {

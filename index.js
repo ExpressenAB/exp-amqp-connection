@@ -1,10 +1,10 @@
 "use strict";
 
-const bootstrap = require("./bootstrap");
 const EventEmitter = require("events");
-const transform = require("./transform");
 const crypto = require("crypto");
 const async = require("async");
+const bootstrap = require("./lib/bootstrap");
+const transform = require("./lib/transform");
 
 const TMP_Q_TTL = 60000;
 

@@ -1,6 +1,8 @@
 app:
   build: .
-  entrypoint: /bin/bash -c 
+  entrypoint: /bin/bash -c
+  environment:
+    - RABBIT_URL=amqp://guest:guest@linked-rabbitmq
   links:
     - rabbitmq:linked-rabbitmq
 rabbitmq:

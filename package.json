@@ -9,7 +9,7 @@
   ],
   "version": "3.0.0",
   "scripts": {
-    "pretest": "docker-compose build",
+    "pretest": "docker-compose up -d rabbitmq && docker-compose build app",
     "test": "docker-compose run app \"cd /app && node_modules/.bin/mocha\"",
     "posttest": "eslint --cache ."
   },
