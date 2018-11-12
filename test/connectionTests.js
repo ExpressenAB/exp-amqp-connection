@@ -387,10 +387,11 @@ Feature("Multiple connections", () => {
 
   And("We create a subscription to first connection", (done) => {
     broker1.on("subscribed", (sub) => {
+      console.log(sub);
       if (sub.attempt === 1) done();
     });
-    broker1.subscribeTmp("testRoutingKey-1", (msg) => {
-      received1 = msg;
+    broker1.subscribeTmp("testRoutingKey-1", (msg, meta) => {
+      received1 = { msg, meta };
     });
   });
 
@@ -398,8 +399,8 @@ Feature("Multiple connections", () => {
     broker2.on("subscribed", (sub) => {
       if (sub.attempt === 1) done();
     });
-    broker2.subscribeTmp("testRoutingKey-2", (msg) => {
-      received2 = msg;
+    broker2.subscribeTmp("testRoutingKey-2", (msg, meta) => {
+      received2 = { msg, meta };
     });
   });
 
@@ -413,12 +414,14 @@ Feature("Multiple connections", () => {
     waitForTruthy(() => received2, done);
   });
 
-  Then("The first message should arrive correctly", () => {
-    assert.equal("Hello first", received1);
+  Then("The first message should arrive correctly via the first connections exchange", () => {
+    assert.equal("Hello first", received1.msg);
+    assert.equal("es-first", received1.meta.fields.exchange);
   });
 
   And("The second messages should arrive correctly", () => {
-    assert.equal("Hello second", received2);
+    assert.equal("Hello second", received2.msg);
+    assert.equal("es-second", received2.meta.fields.exchange);
   });
 });
 

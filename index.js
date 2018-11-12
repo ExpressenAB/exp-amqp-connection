@@ -39,6 +39,7 @@ function init(behaviour) {
         bootstrapRes.connection.on("close", (why) => api.emit("error", why));
         bootstrapRes.pubChannel.on("error", (err) => api.emit("error", err));
         bootstrapRes.subChannel.on("error", (err) => api.emit("error", err));
+        bootstrapRes.pubChannel.assertExchange(behaviour.exchange, "topic");
       }
       callback(bootstrapErr, bootstrapRes);
     });
