@@ -9,7 +9,7 @@ const async = require("async");
 const _ = require("lodash");
 const URL = require("url").URL;
 
-const rabbitUrl = process.env.RABBIT_URL || "amqp://localhost";
+const rabbitUrl = process.env.RABBIT_URL || "amqp://guest:guest@localhost";
 const defaultBehaviour = { exchange: "e1", confirm: true, url: rabbitUrl };
 
 Feature("Connect", () => {
@@ -30,7 +30,7 @@ Feature("Connect", () => {
     let badPortBehaviour;
     after((done) => shutdown(broker, done));
     When("Trying to connect to bad port", () => {
-      badPortBehaviour = Object.assign({}, defaultBehaviour, { reuse: "bad-port", url: "amqp://localhost:6666" });
+      badPortBehaviour = Object.assign({}, defaultBehaviour, { configKey: "bad-port", url: "amqp://localhost:6666" });
     });
     Then("We should get an error", (done) => {
       broker = init(badPortBehaviour);
@@ -162,25 +162,32 @@ Feature("Subscribe", () => {
 
   Scenario("Multiple subscriptions", () => {
     const messages = [];
+    const ts = new Date().getTime();
+    const q1 = `msub1-${ts}`,
+      q2 = `msub2-${ts}`,
+      q3 = `msub3-${ts}`;
     let broker;
-    const handler = (message) => {
+    const handler = (message, meta) => {
+      console.log(meta.fields.routingKey, message);
       messages.push(message);
     };
+
     after((done) => shutdown(broker, done));
+
     When("We have a connection", () => {
       broker = init(defaultBehaviour);
     });
-    And("We create a subscription with routing key 1", () => {
-      broker.subscribe(["k1"], "testQ-1", handler);
+    And("We create a subscription with routing key 1", (done) => {
+      broker.on("subscribed", (sub) => sub.queue === q1 && done());
+      broker.subscribe(["k1"], q1, handler);
     });
-    And("We create another subscription qith routing key 1", () => {
-      broker.subscribe(["k1"], "testQ-2", handler);
+    And("We create another subscription qith routing key 1", (done) => {
+      broker.on("subscribed", (sub) => sub.queue === q2 && done());
+      broker.subscribe(["k1"], q2, handler);
     });
     And("We create a subscription with routing key 2", (done) => {
-      broker.on("subscribed", (sub) => {
-        if (sub.queue === "testQ-3") done();
-      });
-      broker.subscribe(["k2"], "testQ-3", handler);
+      broker.on("subscribed", (sub) => sub.queue === q3 && done());
+      broker.subscribe(["k2"], q3, handler);
     });
 
     When("We publish a message with key 1", (done) => {
@@ -227,7 +234,7 @@ Feature("Subscribe", () => {
     after((done) => shutdown(broker, done));
 
     When("We have a connection with acknowledgement enabled and prefetch 3", () => {
-      broker = init(_.defaults({ ack: true, prefetch: 3 }, defaultBehaviour));
+      broker = init(_.defaults({ ack: true, prefetch: 3, configKey: "3prefetch" }, defaultBehaviour));
     });
     And("We create a subscription", (done) => {
       broker.on("subscribed", () => done());
@@ -310,21 +317,49 @@ Feature("Bootstrapping", () => {
   let broker;
   before(killRabbitConnections);
   after((done) => shutdown(broker, done));
-  When("Connect to the borker", () => {
-    broker = amqp(defaultBehaviour);
+
+  Scenario("Reuse connection", () => {
+    When("Connect to the borker", () => {
+      broker = amqp(defaultBehaviour);
+    });
+    And("We use it a ton of times", (done) => {
+      let i = 0;
+      async.whilst(
+        () => i++ < 100,
+        (cb) => broker.publish("bogus", "bogus", cb),
+        done);
+    });
+    Then("Only one actual connection should be created", (done) => {
+      getRabbitConnections((err, conns) => {
+        if (err) return done(err);
+        assert.equal(1, conns.length);
+        done();
+      });
+    });
   });
-  And("We use it a ton of times", (done) => {
-    let i = 0;
-    async.whilst(
-      () => i++ < 100,
-      (cb) => broker.publish("bogus", "bogus", cb),
-      done);
-  });
-  Then("Only one actual connection should be created", (done) => {
-    getRabbitConnections((err, conns) => {
-      if (err) return done(err);
-      assert.equal(1, conns.length);
-      done();
+
+  Scenario("Same config key for different conf", () => {
+
+
+    Given("A rabbit connection initialized with key 'A1'", () => {
+      const orgBroker = init(_.defaults({ configKey: "A1", exchange: "hello" }, defaultBehaviour));
+      orgBroker.publish("1", "OK");
+    });
+    let borken;
+    When("We initialize another connection using key 'A1', but with different settings", () => {
+      borken = init(_.defaults({ configKey: "A1", exchange: "byebye" }, defaultBehaviour));
+    });
+    let error;
+    Then("It should not be usable", (done) => {
+      borken.on("error", (err) => {
+        error = err;
+        done();
+      });
+      borken.publish("1", "SHOULD FAIL");
+    });
+
+    And("The error message shoukd indicate there was a problem with the conf", () => {
+      assert(error.includes("same configKey"), error);
     });
   });
 });
@@ -372,7 +407,7 @@ Feature("Multiple connections", () => {
   Given("We have a connection to one exchange", () => {
     broker1 = init(Object.assign({}, defaultBehaviour, {
       exchange: "es-first",
-      reuse: "first",
+      configKey: "first",
       confirm: true
     }));
   });
@@ -380,7 +415,7 @@ Feature("Multiple connections", () => {
   And("We have a connection to another exchange", () => {
     broker2 = init(Object.assign({}, defaultBehaviour, {
       exchange: "es-second",
-      reuse: "second",
+      configKey: "second",
       confirm: true
     }));
   });
@@ -436,7 +471,8 @@ Feature("Negative acknowledgement", () => {
 
     Given("We have a connection", () => {
       broker = init(_.defaults({
-        ack: true
+        ack: true,
+        configKey: "ackTest",
       }, defaultBehaviour));
     });
     And("We create a subscription that will nack one message", (done) => {
@@ -483,7 +519,8 @@ Feature("Negative acknowledgement", () => {
 
     Given("We have a connection", () => {
       broker = init(_.defaults({
-        ack: true
+        ack: true,
+        configKey: "nackTest",
       }, defaultBehaviour));
     });
     And("We create a subscription that will nack one message with requeue false", (done) => {
@@ -536,6 +573,7 @@ Feature("Dead letter exchange", () => {
   Given("We have a connection with a dead letter exchange", () => {
     broker = init(_.defaults({
       ack: true,
+      configKey: "deadLetterTest",
       queueArguments: {
         "x-dead-letter-exchange": "DLX"
       }
@@ -543,7 +581,8 @@ Feature("Dead letter exchange", () => {
   });
   And("We have a connection to said dead letter exchange", () => {
     deadLetterBroker = init(_.defaults({
-      exchange: "DLX"
+      exchange: "DLX",
+      configKey: "deadLetterTest2",
     }, defaultBehaviour));
   });
   And("We create a subscription that will nack one message without requeueing", (done) => {
@@ -611,7 +650,8 @@ Feature("Metadata", () => {
 
   Given("We have a connection", () => {
     broker = init(_.defaults({
-      ack: true
+      ack: true,
+      configKey: "metaDataTest",
     }, defaultBehaviour));
   });
   And("We create a subscription", (done) => {
@@ -658,7 +698,7 @@ function getRabbitConnections(callback) {
 
 function killRabbitConnections() {
   getRabbitConnections((err, connections) => {
-    if (err) assert(false, err);
+    if (err) return assert(false, err);
     connections.forEach(killRabbitConnection);
   });
 }
@@ -674,6 +714,7 @@ function deleteRabbitQueue(queue, done) {
 function deleteResource(url, done) {
   request.del(url, (err, resp, body) => {
     if (err) return done(err);
+    if (resp.statusCode === 404) return done();
     if (resp.statusCode >= 300) return done(`${resp.statusCode} ${body}`);
     done();
   });

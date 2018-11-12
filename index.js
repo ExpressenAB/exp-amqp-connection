@@ -23,7 +23,8 @@ const defaultBehaviour = {
   resubscribeOnError: true,
   queueArguments: {},
   prefetch: 20,
-  logger: dummyLogger
+  logger: dummyLogger,
+  configKey: "default"
 };
 
 function init(behaviour) {
