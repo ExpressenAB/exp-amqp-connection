@@ -1,19 +1,17 @@
 "use strict";
 
-/* eslint no-undef: 0, new-cap: 0 */
-
-var tested = require("../transform");
-var assert = require("assert");
+const tested = require("../lib/transform");
+const assert = require("assert");
 
 Feature("Transform", () => {
 
-  var decoded;
-  var text = "Just text - e.g. soap xml";
+  let decoded;
+  const text = "Just text - e.g. soap xml";
 
   Scenario("Decode", () => {
     When("We receive a message without properties", () => {
-      var encoded = tested.encode(text);
-      var message = {
+      const encoded = tested.encode(text);
+      const message = {
         content: encoded.buffer
       };
       decoded = tested.decode(message);

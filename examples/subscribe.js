@@ -1,21 +1,21 @@
 "use strict";
 
-var init = require("exp-amqp-connection");
+const init = require("..");
 
-var amqpBehaviour = {
+const amqpBehaviour = {
   url: "amqp://localhost",
   exchange: "my-excchange",
   ack: "true",
   prefetch: 10
 };
 
-var broker = init(amqpBehaviour);
+const broker = init(amqpBehaviour);
 
-broker.on("connected", function() {
+broker.on("connected", () => {
   console.log("Connected to amqp server");
 });
 
-broker.on("subscribed", function(subscription) {
+broker.on("subscribed", (subscription) => {
   console.log("Subscription started:", subscription);
 });
 
@@ -25,7 +25,7 @@ broker.on("subscribed", function(subscription) {
 //
 // NOTE: See the "subcribe-reconnect" example on how to handle errors without
 // restarting the process.
-broker.on("error", function(error) {
+broker.on("error", (error) => {
   console.error("Amqp error", error, ", aborting process.");
   process.exit(1);
 });
@@ -37,6 +37,6 @@ function handleMessage(message, meta, notify) {
 
 broker.subscribe("some-routing-key", "some-queue", handleMessage);
 
-setInterval(function() {
-  broker.publish("some-routing-key", "Hello " + new Date());
+setInterval(() => {
+  broker.publish("some-routing-key", `Hello ${new Date()}`);
 }, 1000);

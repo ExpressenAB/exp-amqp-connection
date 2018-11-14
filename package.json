@@ -7,11 +7,12 @@
     "Jens Carlén",
     "Pål Edman"
   ],
-  "version": "2.3.3",
+  "version": "3.0.1-beta",
   "scripts": {
-    "pretest": "docker-compose build",
-    "test": "docker-compose run app \"cd /app && node_modules/.bin/mocha\"",
-    "posttest": "eslint --cache ."
+    "predockertest": "docker-compose up -d rabbitmq && docker-compose build app",
+    "dockertest": "docker-compose run app \"cd /app && node_modules/.bin/mocha\"",
+    "posttest": "eslint --cache .",
+    "test": "mocha test/"
   },
   "repository": "git://github.com/ExpressenAB/exp-amqp-connection.git",
   "keywords": [
@@ -24,15 +25,15 @@
   },
   "main": "index.js",
   "dependencies": {
-    "amqplib": "^0.4.1",
-    "async": "^0.9.2"
+    "amqplib": "^0.5.2",
+    "async": "^2.6.1"
   },
   "devDependencies": {
-    "chai": "^2.1.1",
-    "eslint": "^2.6.3",
+    "chai": "^4.2.0",
+    "eslint": "^5.8.0",
     "lodash": "^4.17.4",
-    "mocha": "^2.2.1",
-    "mocha-cakes-2": "^1.1.1",
+    "mocha": "^5",
+    "mocha-cakes-2": "^3.3.0",
     "request": "^2.53.0"
   }
 }

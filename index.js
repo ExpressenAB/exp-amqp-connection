@@ -1,20 +1,21 @@
 "use strict";
 
-var bootstrap = require("./bootstrap");
-var EventEmitter = require("events");
-var transform = require("./transform");
-var crypto = require("crypto");
-var async = require("async");
+const EventEmitter = require("events");
+const crypto = require("crypto");
+const async = require("async");
+const bootstrap = require("./lib/bootstrap");
+const transform = require("./lib/transform");
 
-var TMP_Q_TTL = 60000;
+const TMP_Q_TTL = 60000;
 
-var dummyLogger = {
+const dummyLogger = {
+  // eslint-disable-next-line no-console
+  info: console.log,
   // eslint-disable-next-line no-console
   error: console.log
 };
 
-var defaultBehaviour = {
-  reuse: "default",
+const defaultBehaviour = {
   ack: false,
   confirm: false,
   heartbeat: 10,
@@ -22,94 +23,112 @@ var defaultBehaviour = {
   resubscribeOnError: true,
   queueArguments: {},
   prefetch: 20,
-  logger: dummyLogger
+  logger: dummyLogger,
+  configKey: "default"
 };
 
 function init(behaviour) {
-  var api = new EventEmitter();
+  const api = new EventEmitter();
   behaviour = Object.assign({}, defaultBehaviour, behaviour);
 
-  api.subscribeTmp = function (routingKeyOrKeys, handler, cb) {
-    api.subscribe(routingKeyOrKeys, undefined, handler, cb);
+  // get connnection and add event listeners if it's brand new.
+  const doBootstrap = function(callback) {
+    bootstrap(behaviour, (bootstrapErr, bootstrapRes) => {
+      if (bootstrapErr) api.emit("error", bootstrapErr);
+      if (bootstrapRes && bootstrapRes.virgin) {
+        bootstrapRes.connection.on("error", (err) => api.emit("error", err));
+        bootstrapRes.connection.on("close", (why) => api.emit("error", why));
+        bootstrapRes.pubChannel.on("error", (err) => api.emit("error", err));
+        bootstrapRes.subChannel.on("error", (err) => api.emit("error", err));
+        bootstrapRes.pubChannel.assertExchange(behaviour.exchange, "topic");
+      }
+      callback(bootstrapErr, bootstrapRes);
+    });
   };
 
-  api.subscribe = function (routingKeyOrKeys, queue, handler, cb) {
-    bootstrap(behaviour, api, function (connErr, conn) {
-      var resubTimer;
-      if (connErr) return handleSubscribeError(connErr);
-      conn.on("error", handleSubscribeError);
-
-      var routingKeys = Array.isArray(routingKeyOrKeys) ? routingKeyOrKeys : [routingKeyOrKeys];
-      conn.createChannel(function (channelErr, subChannel) {
-        subChannel.prefetch(behaviour.prefetch);
-        var queueOpts = {
-          durable: !!queue,
-          autoDelete: !queue,
-          exclusive: !queue,
-          arguments: Object.assign(!queue ? {"x-expires": TMP_Q_TTL} : {}, behaviour.queueArguments)
-        };
-        var queueName = queue ? queue : getProductName() + "-" + getRandomStr();
-        subChannel.assertExchange(behaviour.exchange, "topic");
-        subChannel.assertQueue(queueName, queueOpts);
-        routingKeys.forEach(function (key) {
-          subChannel.bindQueue(queueName, behaviour.exchange, key, {});
-        });
-        var amqpHandler = function (message) {
-          if (!message) return handleSubscribeError("Subscription cancelled");
-          var ackFun = function () {
-            subChannel.ack(message);
-          };
-          var nackFun = function (requeue) {
-            subChannel.nack(message, false, requeue);
-          };
-          var decodedMessage;
-          try {
-            decodedMessage = transform.decode(message);
-          } catch (decodeErr) {
-            behaviour.logger.error("Ignoring un-decodable message:", message, "reason:", decodeErr);
-            if (behaviour.ack) {
-              ackFun(message);
-            }
-            return;
-          }
-          handler(decodedMessage, message, {ack: ackFun, nack: nackFun});
-        };
-        var consumeOpts = {noAck: !behaviour.ack};
-        subChannel.consume(queueName, amqpHandler, consumeOpts, cb);
-        api.emit("subscribed", {key: routingKeyOrKeys, queue: queueName});
-      });
-
-      function handleSubscribeError(err) {
-        if (err) {
-          api.emit("error", err);
-          if (behaviour.resubscribeOnError && !resubTimer) {
-            resubTimer = setTimeout(function () {
-              api.subscribe(routingKeyOrKeys, queue, handler);
-            }, 5000);
-          }
+  const doSubscribe = function(routingKeyOrKeys, queue, handler, attempt) {
+    doBootstrap((bootstrapErr, bootstrapRes) => {
+      if (bootstrapErr) return; // Ok to ignore, emitted as error in doBootstrap()
+      const routingKeys = Array.isArray(routingKeyOrKeys) ? routingKeyOrKeys : [routingKeyOrKeys];
+      const subChannel = bootstrapRes.subChannel;
+      subChannel.prefetch(behaviour.prefetch);
+      const queueOpts = {
+        durable: !!queue,
+        autoDelete: !queue,
+        exclusive: !queue,
+        arguments: Object.assign(!queue ? { "x-expires": TMP_Q_TTL } : {}, behaviour.queueArguments)
+      };
+      const queueName = queue ? queue : `${getProductName()}-${getRandomStr()}`;
+      subChannel.assertExchange(behaviour.exchange, "topic");
+      subChannel.assertQueue(queueName, queueOpts);
+      routingKeys.forEach((key) => subChannel.bindQueue(queueName, behaviour.exchange, key, {}));
+      const amqpHandler = function(message) {
+        if (!message) {
+          api.emit("error", "Subscription cancelled");
         }
-      }
+        const ackFun = () => subChannel.ack(message);
+        const nackFun = (requeue) => subChannel.nack(message, false, requeue);
+        let decodedMessage;
+        try {
+          decodedMessage = transform.decode(message);
+        } catch (decodeErr) {
+          behaviour.logger.error("Ignoring un-decodable message:", message, "reason:", decodeErr);
+          if (behaviour.ack) {
+            subChannel.ack(message);
+          }
+          return;
+        }
+        handler(decodedMessage, message, { ack: ackFun, nack: nackFun });
+      };
+      const consumeOpts = { noAck: !behaviour.ack };
+      subChannel.consume(queueName, amqpHandler, consumeOpts, (err) => {
+        if (err) return api.emit("error", err);
+        api.emit("subscribed", { key: routingKeyOrKeys, queue: queueName, attempt });
+      });
     });
   };
 
-  api.publish = function (routingKey, message, meta, cb) {
-    if(typeof meta === "function") cb = meta;
-    cb = cb || function () {};
-    bootstrap(behaviour, api, function (connErr, conn, channel) {
-      if (connErr) {
-        api.emit("error", connErr);
-        return cb(connErr);
+  api.subscribeTmp = function(routingKeyOrKeys, handler) {
+    api.subscribe(routingKeyOrKeys, undefined, handler);
+  };
+
+  api.subscribe = function(routingKeyOrKeys, queue, handler) {
+    let resubTimer;
+    let attempt = 1;
+    const resubscribeOnError = (err) => {
+      if (err && !resubTimer && behaviour.resubscribeOnError) {
+        behaviour.logger.info("Amqp error received. Resubscribing in 5 secs.", err.message);
+        resubTimer = setTimeout(() => {
+          attempt = attempt + 1;
+          doSubscribe(routingKeyOrKeys, queue, handler, attempt);
+          resubTimer = null;
+        }, 5000);
       }
-      var encodedMsg = transform.encode(message, meta);
-      channel.publish(behaviour.exchange, routingKey, encodedMsg.buffer, encodedMsg.props, cb);
+    };
+
+    doSubscribe(routingKeyOrKeys, queue, handler, attempt);
+    api.on("error", resubscribeOnError);
+  };
+
+  api.publish = function(routingKey, message, meta, cb) {
+    if (typeof meta === "function") cb = meta;
+    cb = cb || (() => {});
+    doBootstrap((bootstrapErr, bootstrapRes) => {
+      if (bootstrapErr) {
+        return cb(bootstrapErr);
+      }
+      const encodedMsg = transform.encode(message, meta);
+      bootstrapRes.pubChannel.publish(behaviour.exchange, routingKey, encodedMsg.buffer, encodedMsg.props, cb);
     });
   };
 
-  api.delayedPublish = function (routingKey, message, delay, meta, cb) {
-    if(typeof meta === "function") cb = meta;
-    cb = cb || function () {};
-    bootstrap(behaviour, api, function (connErr, conn, channel) {
-      var name = behaviour.exchange + "-exp-amqp-delayed-" + delay;
+  api.delayedPublish = function(routingKey, message, delay, meta, cb) {
+    if (typeof meta === "function") cb = meta;
+    cb = cb || function() {};
+    doBootstrap((bootstrapErr, bootstrapRes) => {
+      if (bootstrapErr) return cb(bootstrapErr);
+      const name = `${behaviour.exchange}-exp-amqp-delayed-${delay}`;
+      const channel = bootstrapRes.pubChannel;
       channel.assertExchange(name, "fanout", {
         durable: true,
         autoDelete: true
@@ -123,29 +142,33 @@ function init(behaviour) {
           "x-expires": delay + 60000
         }
       });
-      var encodedMsg = transform.encode(message, meta);
+      const encodedMsg = transform.encode(message, meta);
       async.series([
-        function (done) {
+        function(done) {
           channel.bindQueue(name, name, "#", {}, done);
         },
-        function (done) {
+        function(done) {
           channel.publish(name, routingKey, encodedMsg.buffer, encodedMsg.props, done);
         }
       ], cb);
     });
   };
 
-  api.deleteQueue = function (queue) {
-    bootstrap(behaviour, api, function (connErr, conn, channel) {
-      channel.deleteQueue(queue);
+  api.deleteQueue = function(queue, cb) {
+    cb = cb || (() => {});
+    doBootstrap((err, res) => {
+      if (err) return cb(err);
+      res.pubChannel.deleteQueue(queue);
     });
   };
 
-  api.shutdown = function (cb) {
-    cb = cb || function () {};
-    bootstrap(behaviour, api, function (connErr, conn) {
-      if (connErr) return cb();
-      conn.close(cb);
+  api.shutdown = function(cb) {
+    cb = cb || (() => {});
+    doBootstrap((err, res) => {
+      if (err) {
+        return cb(err);
+      }
+      res.connection.close(cb);
     });
   };
 
@@ -154,9 +177,9 @@ function init(behaviour) {
 
 function getProductName() {
   try {
-    var pkg = require(process.cwd() + "/package.json");
-    var nodeEnv = (process.env.NODE_ENV || "development");
-    return pkg.name + "-" + nodeEnv;
+    const pkg = require(`${process.cwd()}/package.json`);
+    const nodeEnv = (process.env.NODE_ENV || "development");
+    return `${pkg.name}-${nodeEnv}`;
   } catch (e) {
     return "exp-amqp-connection";
   }
