@@ -23,16 +23,18 @@ Limitations:
 ## Api
 
 Exposes a single function that boostraps a broker object, which in turn can be used for publishing and consuming messages.
+The connection will be re-established in case of errors.
+
 For example:
 
 ```js
 
-var init = require("exp-amqp-connection");
-var behaviour = {
+const init = require("exp-amqp-connection");
+const behaviour = {
   exchange: "my-exchange",
   url: "amqp://localhost"
 };
-var broker = init(behaviour);
+const broker = init(behaviour);
 
 broker.subscribeTmp("routingKey1", console.log);
 broker.subscribeTmp("routingKey2", console.log);
@@ -48,17 +50,16 @@ broker.delayedPublish("routingKey2", "Msg 3", 3000);
 
 The following options are accepted:
 
-* url: amqp url. This is where you specify amqp server adress/port, username, password etc. *(example: "amqp://user:pass@localhost:15675")*
-* exchange: exchange to use, set to "" to use the built-in default exchange.
-* ack: set to true if messages receiver should be acked (see "subscribe" in examples folder). Defaults to false.
-* prefetch: Maximum allowed number of messages awaiting acknowledgement. Only applicable if "ack" is true. Defaults to 20.
-* confirm: whether or not to use confirm mode for publishing. If enabled, a callback can be added to the publish call to see if the publish was successful or not. Defaults to false.
-* heartbeat. Send heartbeats at regular intervals to ensure that the server is reachable. Defaults to 10 seconds. Set to 0 to disable heartbeats.
-* productName: will show up in the admin interface for the connection. Great for debugging purpouses. Defaults to node app name and version from package.json.
-* queueArguments: broker-specific args for creating queues ("x-message-ttl", "x-max-priority" etc)
-* reuse: key for connection re-use.
-* logger: A logger object implementing error, warning, info, debug for example https://github.com/tj/log.js
-
+- url: amqp url. This is where you specify amqp server adress/port, username, password etc. *(example: "amqp://user:pass@localhost:15675")*
+- exchange: exchange to use, set to "" to use the built-in default exchange.
+- ack: set to true if messages receiver should be acked (see "subscribe" in examples folder). Defaults to false.
+- prefetch: Maximum allowed number of messages awaiting acknowledgement. Only applicable if "ack" is true. Defaults to 20.
+- confirm: whether or not to use confirm mode for publishing. If enabled, a callback can be added to the publish call to see if the publish was successful or not. Defaults to false.
+- heartbeat. Send heartbeats at regular intervals to ensure that the server is reachable. Defaults to 10 seconds. Set to 0 to disable heartbeats.
+- productName: will show up in the admin interface for the connection. Great for debugging purpouses. Defaults to node app name and version from package.json.
+- queueArguments: broker-specific args for creating queues ("x-message-ttl", "x-max-priority" etc)
+- configKey: key for connection re-use.
+- logger: A logger object implementing error, warning, info, debug for example https://github.com/tj/log.js
 
 ### Broker
 
@@ -66,7 +67,15 @@ The broker object returned has the following functions. See the [examples](examp
 
 #### publish(routingKey, message, callback)
 
+Regular publish
+
+#### delayedPublish(routingKey, message, delay, callback)
+
+Delayed publish using dead-letter-hack: https://www.cloudamqp.com/docs/delayed-messages.html
+
 #### subscribe(routingKey, queue, handler, callback)
+
+Subscribe using named durable queue.
 
 #### subscribeTmp(routingKey, handler, callback)
 
@@ -78,6 +87,34 @@ Shuts down connection to broker.
 
 #### events
 
-* "error": in case of amqp errors
-* "connected": when connected to amqp server
-* "subscribed": when subscription is started
+- "error": in case of amqp errors
+- "connected": when connected to amqp server
+- "subscribed": when subscription is started
+
+### Multiple connections
+
+By default one and only one connection is maintained for the entire process.
+It is possible to add more by initializing with another `configKey`.
+
+For example:
+
+```js
+
+const init = require("exp-amqp-connection");
+const behaviour = {
+  exchange: "my-exchange",
+  url: "amqp://localhost",
+  configKey: "my-amqp"
+};
+
+// 1st connection
+const broker = init(behaviour);
+
+const otherBehaviour = {
+   url: "amqp://otherhost",
+   exchange: "other-exchange",
+   configKey: "other-amqp"
+}
+
+const broker2 = init(behaviour2)
+```
