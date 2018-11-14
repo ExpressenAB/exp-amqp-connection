@@ -1,7 +1,5 @@
 "use strict";
 
-/* eslint no-undef: 0, new-cap: 0 */
-
 const tested = require("../lib/transform");
 const assert = require("assert");
 
