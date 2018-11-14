@@ -51,7 +51,7 @@ The following options are accepted:
 * url: amqp url. This is where you specify amqp server adress/port, username, password etc. *(example: "amqp://user:pass@localhost:15675")*
 * exchange: exchange to use, set to "" to use the built-in default exchange.
 * ack: set to true if messages receiver should be acked (see "subscribe" in examples folder). Defaults to false.
-* prefetch: Maximuma allowed number of messages awaiting acknowledgement. Only applicable if "ack" is true. Defaults to 20.
+* prefetch: Maximum allowed number of messages awaiting acknowledgement. Only applicable if "ack" is true. Defaults to 20.
 * confirm: whether or not to use confirm mode for publishing. If enabled, a callback can be added to the publish call to see if the publish was successful or not. Defaults to false.
 * heartbeat. Send heartbeats at regular intervals to ensure that the server is reachable. Defaults to 10 seconds. Set to 0 to disable heartbeats.
 * productName: will show up in the admin interface for the connection. Great for debugging purpouses. Defaults to node app name and version from package.json.
