@@ -73,9 +73,10 @@ Regular publish
 
 Delayed publish using dead-letter-hack: https://www.cloudamqp.com/docs/delayed-messages.html
 
-#### subscribe(routingKey, queue, handler, callback)
+#### subscribe(routingKey, queue, handler)
 
-Subscribe using named durable queue.
+Subscribe using named durable queue. If need to wait for the subscription to start, issue `.on("subscribed", (sub) => ...)`
+before calling subscribe.
 
 #### subscribeTmp(routingKey, handler, callback)
 
