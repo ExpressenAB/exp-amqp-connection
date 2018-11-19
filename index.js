@@ -38,6 +38,7 @@ function init(behaviour) {
       if (bootstrapRes && bootstrapRes.virgin) {
         bootstrapRes.connection.on("error", (err) => api.emit("error", err));
         bootstrapRes.connection.on("close", (why) => api.emit("error", why));
+        api.emit("connected");
         bootstrapRes.pubChannel.on("error", (err) => api.emit("error", err));
         bootstrapRes.subChannel.on("error", (err) => api.emit("error", err));
         bootstrapRes.pubChannel.assertExchange(behaviour.exchange, "topic");

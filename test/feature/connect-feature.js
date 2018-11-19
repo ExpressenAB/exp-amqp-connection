@@ -1,17 +1,25 @@
 "use strict";
 
 const utils = require("../testUtils");
+const assert = require("chai").assert;
+
 
 Feature("Connect", () => {
 
   Scenario("Ok connection", () => {
-    let broker;
+    let broker, eventReceived;
     after((done) => utils.shutdown(broker, done));
     When("Connecting to default port", () => {
       broker = utils.init();
     });
     Then("The connection should be ok", (done) => {
+      broker.on("connected", () => {
+        eventReceived = true;
+      });
       broker.publish("foobar", "foobar", done);
+    });
+    And("We should get a connected event", () => {
+      assert(eventReceived);
     });
   });
 
