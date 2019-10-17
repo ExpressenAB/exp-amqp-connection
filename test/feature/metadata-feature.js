@@ -48,8 +48,8 @@ Feature("Metadata", () => {
     msgContent.msgId = 2;
     broker.delayedPublish("testMetaDataRoutingKey", msgContent, 500, msgMeta);
   });
-  And("We wait 0.6 seconds", (done) => {
-    setTimeout(done, 600);
+  And("We wait 1 second", (done) => {
+    setTimeout(done, 1000);
   });
   Then("Received message should contain expected correlationId", () => {
     assert.equal(receivedMessage.content.msgId, 2);

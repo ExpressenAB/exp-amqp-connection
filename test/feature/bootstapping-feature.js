@@ -14,11 +14,7 @@ Feature("Bootstrapping", () => {
       broker = utils.init();
     });
     And("We use it a ton of times", (done) => {
-      let i = 0;
-      async.whilst(
-        () => i++ < 100,
-        (cb) => broker.publish("bogus", "bogus", cb),
-        done);
+      async.forEachSeries(new Array(100), (_, cb) => broker.publish("bogus", "bogus", cb), done);
     });
     Then("Only one actual connection should be created", (done) => {
       utils.getRabbitConnections((err, conns) => {

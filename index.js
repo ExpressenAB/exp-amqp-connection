@@ -120,38 +120,40 @@ function init(behaviour) {
       }
       const encodedMsg = transform.encode(message, meta);
       bootstrapRes.pubChannel.publish(behaviour.exchange, routingKey, encodedMsg.buffer, encodedMsg.props, cb);
+      if (!behaviour.confirm) setImmediate(cb);
     });
   };
 
+  let delayedAssets = {};
   api.delayedPublish = function(routingKey, message, delay, meta, cb) {
     if (typeof meta === "function") cb = meta;
     cb = cb || function() {};
     doBootstrap((bootstrapErr, bootstrapRes) => {
       if (bootstrapErr) return cb(bootstrapErr);
+      if (bootstrapRes.virgin) delayedAssets = {};
       const name = `${behaviour.exchange}-exp-amqp-delayed-${delay}`;
       const channel = bootstrapRes.pubChannel;
-      channel.assertExchange(name, "fanout", {
-        durable: true,
-        autoDelete: true
-      });
-      channel.assertQueue(name, {
-        durable: true,
-        autoDelete: true,
-        arguments: {
-          "x-dead-letter-exchange": behaviour.exchange,
-          "x-message-ttl": delay,
-          "x-expires": delay + 60000
-        }
-      });
+      if (!delayedAssets[name]) {
+        behaviour.logger.info("Creating delayed queue/exchange pair", name);
+        channel.assertExchange(name, "fanout", {
+          durable: true,
+          autoDelete: true
+        });
+        channel.assertQueue(name, {
+          durable: true,
+          autoDelete: true,
+          arguments: {
+            "x-dead-letter-exchange": behaviour.exchange,
+            "x-message-ttl": delay,
+            "x-expires": delay + 60000
+          }
+        });
+        channel.bindQueue(name, name, "#", {});
+        delayedAssets[name] = true;
+      }
       const encodedMsg = transform.encode(message, meta);
-      async.series([
-        function(done) {
-          channel.bindQueue(name, name, "#", {}, done);
-        },
-        function(done) {
-          channel.publish(name, routingKey, encodedMsg.buffer, encodedMsg.props, done);
-        }
-      ], cb);
+      channel.publish(name, routingKey, encodedMsg.buffer, encodedMsg.props, cb);
+      if (!behaviour.confirm) setImmediate(cb);
     });
   };
 
