@@ -3,7 +3,36 @@
 const utils = require("../testUtils");
 const assert = require("assert");
 
-Feature("Delayed publish", () => {
+Feature("Publish", () => {
+
+   Scenario("No confirm", () => {
+    let broker;
+    after((done) => utils.shutdown(broker, done));
+
+    When("We have a connection with confirm=false", () => {
+      broker = utils.init({confirm: false});
+    });
+
+    Then("The callback should be invoked when we publish a message", (cb) => {
+      broker.publish("testRoutingKey", "Hello hi", cb);
+    });
+
+  });
+
+  Scenario("Confirmed publish", () => {
+    let broker;
+    after((done) => utils.shutdown(broker, done));
+
+    When("We have a connection with confirm=true", () => {
+      broker = utils.init({confirm: true});
+    });
+
+    Then("The callback should be invoked when we publish a message", (cb) => {
+      broker.publish("testRoutingKey", "Hello hi", cb);
+    });
+
+  });
+
   Scenario("2.5 second delay", () => {
     let broker;
     let received = null;
@@ -26,8 +55,8 @@ Feature("Delayed publish", () => {
     Then("It should not have arrived yet", () => {
       assert.equal(null, received);
     });
-    When("We wait two more seconds", (done) => {
-      setTimeout(done, 2000);
+    When("We wait 3 more seconds", (done) => {
+      setTimeout(done, 3000);
     });
     Then("The message should have arrived", () => {
       assert.equal("Hello hi", received);
