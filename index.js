@@ -37,10 +37,12 @@ function init(behaviour) {
       if (bootstrapErr) amqpEvents.emit("error", bootstrapErr);
       if (bootstrapRes && bootstrapRes.virgin) {
         api.emit("connected");
-        bootstrapRes.connection.on("error", (err) => amqpEvents.emit("error", {connErr: err}));
-        bootstrapRes.connection.on("close", (why) => amqpEvents.emit("error", {connClose: why}));
-        bootstrapRes.pubChannel.on("error", (err) => amqpEvents.emit("error", {pubChannelErr: err}));
-        bootstrapRes.subChannel.on("error", (err) => amqpEvents.emit("error", {subChannelErr: err}));
+        console.log(Object.keys(bootstrapRes.connection.connection));
+        bootstrapRes.connection.on("error", (err) => amqpEvents.emit("error", `AMQP connection error: ${err}`));
+        bootstrapRes.connection.on("close", (err) => amqpEvents.emit("error", `AMQP connection error: ${err}`));
+        bootstrapRes.connection.connection.stream.on("close", (why) => amqpEvents.emit("error", `AMQP connection closed: ${why}`));
+        bootstrapRes.pubChannel.on("error", (err) => amqpEvents.emit("error", `AMQP pub channel error: ${err}`));
+        bootstrapRes.subChannel.on("error", (err) => amqpEvents.emit("error", `AMQP sub channel error: ${err}`));
         bootstrapRes.pubChannel.assertExchange(behaviour.exchange, "topic");
       }
       callback(bootstrapErr, bootstrapRes);
