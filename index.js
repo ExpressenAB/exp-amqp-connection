@@ -37,9 +37,9 @@ function init(behaviour) {
       if (bootstrapErr) amqpEvents.emit("error", bootstrapErr);
       if (bootstrapRes && bootstrapRes.virgin) {
         api.emit("connected");
-        console.log(Object.keys(bootstrapRes.connection.connection));
         bootstrapRes.connection.on("error", (err) => amqpEvents.emit("error", `AMQP connection error: ${err}`));
         bootstrapRes.connection.on("close", (err) => amqpEvents.emit("error", `AMQP connection error: ${err}`));
+        // Only way to detect explicit close from management console....
         bootstrapRes.connection.connection.stream.on("close", (why) => amqpEvents.emit("error", `AMQP connection closed: ${why}`));
         bootstrapRes.pubChannel.on("error", (err) => amqpEvents.emit("error", `AMQP pub channel error: ${err}`));
         bootstrapRes.subChannel.on("error", (err) => amqpEvents.emit("error", `AMQP sub channel error: ${err}`));
@@ -146,8 +146,7 @@ function init(behaviour) {
           autoDelete: true,
           arguments: {
             "x-dead-letter-exchange": behaviour.exchange,
-            "x-message-ttl": delay,
-            "x-expires": delay + 60000
+            "x-message-ttl": delay
           }
         });
         channel.bindQueue(name, name, "#", {});
