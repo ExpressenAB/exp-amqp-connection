@@ -40,7 +40,11 @@ function init(behaviour) {
         bootstrapRes.connection.on("error", (err) => amqpEvents.emit("error", `AMQP connection error: ${err}`));
         bootstrapRes.connection.on("close", (err) => amqpEvents.emit("error", `AMQP connection error: ${err}`));
         // Only way to detect explicit close from management console....
-        bootstrapRes.connection.connection.stream.on("close", (why) => amqpEvents.emit("error", `AMQP connection closed: ${why}`));
+        if (bootstrapRes.connection.connection && bootstrapRes.connection.connection.stream) {
+          bootstrapRes.connection.connection.stream.on(
+            "close", (why) => amqpEvents.emit("error", `AMQP connection closed: ${why}`)
+          );
+        }
         bootstrapRes.pubChannel.on("error", (err) => amqpEvents.emit("error", `AMQP pub channel error: ${err}`));
         bootstrapRes.subChannel.on("error", (err) => amqpEvents.emit("error", `AMQP sub channel error: ${err}`));
         bootstrapRes.pubChannel.assertExchange(behaviour.exchange, "topic");
