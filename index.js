@@ -108,8 +108,6 @@ function init(behaviour) {
     const queueOpts = Object.assign({}, defaultQueueOpts, queueOptsIn);
     Object.assign(queueOpts);
     Object.assign(queueOpts.arguments, behaviour.queueArguments);
-    console.log("- - - DEBUG queueOpts", JSON.stringify(queueOpts, null, 2));
-
 
     let resubTimer;
     let attempt = 1;
