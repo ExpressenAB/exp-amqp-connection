@@ -47,20 +47,14 @@ function init(behaviour) {
     });
   };
 
-  const doSubscribe = function(routingKeyOrKeys, queue, handler, attempt) {
+  const doSubscribe = function(routingKeyOrKeys, queueName, queueOpts, handler, attempt) {
     doBootstrap((bootstrapErr, bootstrapRes) => {
       if (bootstrapErr) return; // Ok to ignore, emitted as error in doBootstrap()
       const routingKeys = Array.isArray(routingKeyOrKeys) ? routingKeyOrKeys : [routingKeyOrKeys];
       const subChannel = bootstrapRes.subChannel;
       subChannel.prefetch(behaviour.prefetch);
-      const queueOpts = {
-        durable: !!queue,
-        autoDelete: !queue,
-        exclusive: !queue,
-        arguments: Object.assign(!queue ? { "x-expires": TMP_Q_TTL } : {}, behaviour.queueArguments)
-      };
-      const queueName = queue ? queue : `${getProductName()}-${getRandomStr()}`;
       subChannel.assertExchange(behaviour.exchange, "topic");
+
       subChannel.assertQueue(queueName, queueOpts);
       routingKeys.forEach((key) => subChannel.bindQueue(queueName, behaviour.exchange, key, {}));
       const amqpHandler = function(message) {
@@ -90,24 +84,48 @@ function init(behaviour) {
   };
 
   api.subscribeTmp = function(routingKeyOrKeys, handler) {
-    api.subscribe(routingKeyOrKeys, undefined, handler);
+    const tmpQueueOpts = {
+      durable: false,
+      autoDelete: true,
+      exclusive: true,
+      arguments: Object.assign({ "x-expires": TMP_Q_TTL })
+    }
+    const tmpQueueName = `${getProductName()}-${getRandomStr()}`;
+    api.subscribe(routingKeyOrKeys, tmpQueueName, tmpQueueOpts, handler);
   };
 
-  api.subscribe = function(routingKeyOrKeys, queue, handler) {
+  api.subscribe = function(routingKeyOrKeys, queue, queueOptsIn, handler) {
+    const defaultQueueOpts = {
+      durable: true,
+      autoDelete: false,
+      exclusive: false,
+      arguments: {}
+    };
+    if (!handler) {
+      handler = queueOptsIn;
+      queueOptsIn = {};
+    }
+    const queueOpts = Object.assign({}, defaultQueueOpts, queueOptsIn);
+    Object.assign(queueOpts);
+    Object.assign(queueOpts.arguments, behaviour.queueArguments);
+    console.log("- - - DEBUG queueOpts", JSON.stringify(queueOpts, null, 2));
+
+
     let resubTimer;
     let attempt = 1;
     const resubscribeOnError = (err) => {
       if (err && !resubTimer && behaviour.resubscribeOnError) {
+
         behaviour.logger.info("Amqp error received. Resubscribing in 5 secs.", err.message);
         resubTimer = setTimeout(() => {
           attempt = attempt + 1;
-          doSubscribe(routingKeyOrKeys, queue, handler, attempt);
+          doSubscribe(routingKeyOrKeys, queue, queueOpts, handler, attempt);
           resubTimer = null;
         }, 5000);
       }
     };
 
-    doSubscribe(routingKeyOrKeys, queue, handler, attempt);
+    doSubscribe(routingKeyOrKeys, queue, queueOpts, handler, attempt);
     api.on("error", resubscribeOnError);
   };
 

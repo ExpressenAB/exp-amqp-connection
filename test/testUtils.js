@@ -37,6 +37,13 @@ function deleteRabbitQueue(queue, done) {
   deleteResource(`${adminUrl()}/api/queues/%2F/${queue}`, done);
 }
 
+function getQueue(queue, callback) {
+  request.get(`${adminUrl()}/api/queues/%2F/${queue}`, (err, resp, queueData) => {
+    if (err) return callback(err);
+    callback(null, JSON.parse(queueData));
+  });
+}
+
 function deleteResource(url, done) {
   request.del(url, (err, resp, body) => {
     if (err) return done(err);
@@ -85,5 +92,6 @@ module.exports = {
   rabbitUrl,
   init,
   getRabbitConnections,
-  defaultBehaviour
+  defaultBehaviour,
+  getQueue
 };

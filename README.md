@@ -73,14 +73,27 @@ Regular publish
 
 Delayed publish using dead-letter-hack: https://www.cloudamqp.com/docs/delayed-messages.html
 
-#### subscribe(routingKey, queue, handler)
-
-Subscribe using named durable queue. 
-If you need to wait for the subscription to start, use `.on("subscribed", (sub) => ...)`
-
 #### subscribeTmp(routingKey, handler)
 
-Subscribe using nameless tmp queue. Queue will be destroyed when the broker disconnects.
+Subscribe using randomly named, non-durable, exclusive queue. Queue will be
+destroyed when the broker disconnects.
+
+If you need to wait for the subscription to start, use `.on("subscribed", (sub) => ...)`
+
+#### subscribe(routingKey, queue, handler)
+
+Subscribe using named durable queue. Use this if you are receiving few messages
+and don't want to mis out on any of them when your listener is offlin. 
+
+If you need to wait for the subscription to start, use `.on("subscribed", (sub) => ...)`
+
+#### subscribe(routingKey, queue, queueOptions, handler)
+Same as options but lets the advanced power user pass his or her own options
+(durable, auto-delete etc) for the queue. Use with caution!
+
+List of options available:
+http://www.squaremobius.net/amqp.node/channel_api.html#channel_assertQueue
+
 If you need to wait for the subscription to start, use `.on("subscribed", (sub) => ...)`
 
 #### shutdown(callback)

@@ -34,6 +34,27 @@ Feature("Subscribe", () => {
     });
   });
 
+  Scenario("Custom queue config", () => {
+    let broker;
+    const qName = `some-queue-${Date.now()}`;
+    after((done) => utils.shutdown(broker, done));
+    And("We have a connection", () => {
+      broker = utils.init();
+    });
+    And("We create a subscription with custom config (durbale false)", (done) => {
+      broker.on("subscribed", () => done());
+      broker.subscribe("testRoutingKey", qName, {durable: false}, () => {});
+    });
+    Then("The queue should be configured accorfingly", (done) => {
+      utils.getQueue(qName, (err, q) => {
+        if (err) return done(err);
+        console.log("- - - DEBUG q", JSON.stringify(q, null, 2));
+        assert(q.durable === false);
+        done();
+      });
+    });
+  });
+
   Scenario("Multiple routing keys", () => {
     const messages = [];
     let broker;
