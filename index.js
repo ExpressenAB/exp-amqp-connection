@@ -2,7 +2,6 @@
 
 const EventEmitter = require("events");
 const crypto = require("crypto");
-const async = require("async");
 const bootstrap = require("./lib/bootstrap");
 const transform = require("./lib/transform");
 
@@ -20,7 +19,6 @@ const defaultBehaviour = {
   confirm: false,
   heartbeat: 10,
   productName: getProductName(),
-  resubscribeOnError: true,
   queueArguments: {},
   prefetch: 20,
   logger: dummyLogger,
@@ -29,18 +27,26 @@ const defaultBehaviour = {
 
 function init(behaviour) {
   const api = new EventEmitter();
+  const amqpEvents = new EventEmitter();
+  amqpEvents.on("error", (err) => api.emit("error", err));
   behaviour = Object.assign({}, defaultBehaviour, behaviour);
 
   // get connnection and add event listeners if it's brand new.
   const doBootstrap = function(callback) {
     bootstrap(behaviour, (bootstrapErr, bootstrapRes) => {
-      if (bootstrapErr) api.emit("error", bootstrapErr);
+      if (bootstrapErr) amqpEvents.emit("error", bootstrapErr);
       if (bootstrapRes && bootstrapRes.virgin) {
-        bootstrapRes.connection.on("error", (err) => api.emit("error", err));
-        bootstrapRes.connection.on("close", (why) => api.emit("error", why));
         api.emit("connected");
-        bootstrapRes.pubChannel.on("error", (err) => api.emit("error", err));
-        bootstrapRes.subChannel.on("error", (err) => api.emit("error", err));
+        bootstrapRes.connection.on("error", (err) => amqpEvents.emit("error", `AMQP connection error: ${err}`));
+        bootstrapRes.connection.on("close", (err) => amqpEvents.emit("error", `AMQP connection error: ${err}`));
+        // Only way to detect explicit close from management console....
+        if (bootstrapRes.connection.connection && bootstrapRes.connection.connection.stream) {
+          bootstrapRes.connection.connection.stream.on(
+            "close", (why) => amqpEvents.emit("error", `AMQP connection closed: ${why}`)
+          );
+        }
+        bootstrapRes.pubChannel.on("error", (err) => amqpEvents.emit("error", `AMQP pub channel error: ${err}`));
+        bootstrapRes.subChannel.on("error", (err) => amqpEvents.emit("error", `AMQP sub channel error: ${err}`));
         bootstrapRes.pubChannel.assertExchange(behaviour.exchange, "topic");
       }
       callback(bootstrapErr, bootstrapRes);
@@ -65,7 +71,7 @@ function init(behaviour) {
       routingKeys.forEach((key) => subChannel.bindQueue(queueName, behaviour.exchange, key, {}));
       const amqpHandler = function(message) {
         if (!message) {
-          api.emit("error", "Subscription cancelled");
+          amqpEvents.emit("error", "Subscription cancelled");
         }
         const ackFun = () => subChannel.ack(message);
         const nackFun = (requeue) => subChannel.nack(message, false, requeue);
@@ -97,7 +103,7 @@ function init(behaviour) {
     let resubTimer;
     let attempt = 1;
     const resubscribeOnError = (err) => {
-      if (err && !resubTimer && behaviour.resubscribeOnError) {
+      if (err && !resubTimer) {
         behaviour.logger.info("Amqp error received. Resubscribing in 5 secs.", err.message);
         resubTimer = setTimeout(() => {
           attempt = attempt + 1;
@@ -108,7 +114,7 @@ function init(behaviour) {
     };
 
     doSubscribe(routingKeyOrKeys, queue, handler, attempt);
-    api.on("error", resubscribeOnError);
+    amqpEvents.on("error", resubscribeOnError);
   };
 
   api.publish = function(routingKey, message, meta, cb) {
@@ -144,8 +150,7 @@ function init(behaviour) {
           autoDelete: true,
           arguments: {
             "x-dead-letter-exchange": behaviour.exchange,
-            "x-message-ttl": delay,
-            "x-expires": delay + 60000
+            "x-message-ttl": delay
           }
         });
         channel.bindQueue(name, name, "#", {});
