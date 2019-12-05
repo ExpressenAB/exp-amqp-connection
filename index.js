@@ -2,7 +2,6 @@
 
 const EventEmitter = require("events");
 const crypto = require("crypto");
-const async = require("async");
 const bootstrap = require("./lib/bootstrap");
 const transform = require("./lib/transform");
 
@@ -65,7 +64,7 @@ function init(behaviour) {
       routingKeys.forEach((key) => subChannel.bindQueue(queueName, behaviour.exchange, key, {}));
       const amqpHandler = function(message) {
         if (!message) {
-          api.emit("error", "Subscription cancelled");
+          return api.emit("error", "Subscription cancelled");
         }
         const ackFun = () => subChannel.ack(message);
         const nackFun = (requeue) => subChannel.nack(message, false, requeue);
@@ -96,19 +95,20 @@ function init(behaviour) {
   api.subscribe = function(routingKeyOrKeys, queue, handler) {
     let resubTimer;
     let attempt = 1;
-    const resubscribeOnError = (err) => {
-      if (err && !resubTimer && behaviour.resubscribeOnError) {
-        behaviour.logger.info("Amqp error received. Resubscribing in 5 secs.", err.message);
-        resubTimer = setTimeout(() => {
-          attempt = attempt + 1;
-          doSubscribe(routingKeyOrKeys, queue, handler, attempt);
-          resubTimer = null;
-        }, 5000);
-      }
-    };
-
+    if (behaviour.resubscribeOnError) {
+      const resubscribeOnError = (err) => {
+        if (err && !resubTimer) {
+          behaviour.logger.info("Amqp error received. Resubscribing in 5 secs.", err.message);
+          resubTimer = setTimeout(() => {
+            attempt = attempt + 1;
+            doSubscribe(routingKeyOrKeys, queue, handler, attempt);
+            resubTimer = null;
+          }, 5000);
+        }
+      };
+      api.on("error", resubscribeOnError);
+    }
     doSubscribe(routingKeyOrKeys, queue, handler, attempt);
-    api.on("error", resubscribeOnError);
   };
 
   api.publish = function(routingKey, message, meta, cb) {
