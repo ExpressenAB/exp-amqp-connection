@@ -8,10 +8,12 @@ const assert = require("assert");
 const impl = require("../");
 
 const rabbitUrl = process.env.RABBIT_URL || "amqp://guest:guest@localhost";
-const defaultBehaviour = { exchange: "e1", confirm: true, url: rabbitUrl };
+const defaultBehaviour = { exchange: "e1", confirm: true, url: rabbitUrl, resubscribeOnError: false };
 
 function init(customBehaviour) {
-  return impl(Object.assign({}, defaultBehaviour, customBehaviour));
+  const broker = impl(Object.assign({}, defaultBehaviour, customBehaviour));
+  broker.on("error", () => {});
+  return broker;
 }
 
 function getRabbitConnections(callback) {

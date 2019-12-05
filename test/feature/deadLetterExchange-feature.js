@@ -30,7 +30,7 @@ Feature("Dead letter exchange", () => {
   });
 
   And("We create a subscription that will nack one message without requeueing", (done) => {
-    broker.on("subscribed", () => done());
+    broker.once("subscribed", () => done());
     broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
       received.push({
         msg: msg,

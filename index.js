@@ -18,6 +18,7 @@ const defaultBehaviour = {
   ack: false,
   confirm: false,
   heartbeat: 10,
+  resubscribeOnError: true,
   productName: getProductName(),
   queueArguments: {},
   prefetch: 20,
@@ -71,7 +72,7 @@ function init(behaviour) {
       routingKeys.forEach((key) => subChannel.bindQueue(queueName, behaviour.exchange, key, {}));
       const amqpHandler = function(message) {
         if (!message) {
-          amqpEvents.emit("error", "Subscription cancelled");
+          return amqpEvents.emit("error", "Subscription cancelled");
         }
         const ackFun = () => subChannel.ack(message);
         const nackFun = (requeue) => subChannel.nack(message, false, requeue);
@@ -103,7 +104,7 @@ function init(behaviour) {
     let resubTimer;
     let attempt = 1;
     const resubscribeOnError = (err) => {
-      if (err && !resubTimer) {
+      if (err && !resubTimer && behaviour.resubscribeOnError) {
         behaviour.logger.info("Amqp error received. Resubscribing in 5 secs.", err.message);
         resubTimer = setTimeout(() => {
           attempt = attempt + 1;
