@@ -35,6 +35,10 @@ function killRabbitConnection(conn) {
   deleteResource(`${adminUrl()}/api/connections/${conn.name}`, assert.ifError);
 }
 
+function deleteRabbitExchange(exchange, done) {
+  deleteResource(`${adminUrl()}/api/exchange/%2F/${exchange}`, done);
+}
+
 function deleteRabbitQueue(queue, done) {
   deleteResource(`${adminUrl()}/api/queues/%2F/${queue}`, done);
 }
@@ -82,6 +86,7 @@ function waitForTruthy(fun, cb) {
 module.exports = {
   waitForTruthy,
   shutdown,
+  deleteRabbitExchange,
   deleteRabbitQueue,
   killRabbitConnections,
   rabbitUrl,
