@@ -7,7 +7,7 @@
     "Jens Carlén",
     "Pål Edman"
   ],
-  "version": "3.1.1",
+  "version": "3.1.2",
   "scripts": {
     "predockertest": "docker-compose up -d rabbitmq && docker-compose build app",
     "dockertest": "docker-compose run app \"cd /app && node_modules/.bin/mocha\"",

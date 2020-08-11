@@ -4,6 +4,7 @@ const EventEmitter = require("events");
 const crypto = require("crypto");
 const bootstrap = require("./lib/bootstrap");
 const transform = require("./lib/transform");
+const async = require("async");
 
 const TMP_Q_TTL = 60000;
 
@@ -140,26 +141,30 @@ function init(behaviour) {
       if (bootstrapRes.virgin) delayedAssets = {};
       const name = `${behaviour.exchange}-exp-amqp-delayed-${delay}`;
       const channel = bootstrapRes.pubChannel;
+      const setupTasks = [];
       if (!delayedAssets[name]) {
-        behaviour.logger.info("Creating delayed queue/exchange pair", name);
-        channel.assertExchange(name, "fanout", {
-          durable: true,
-          autoDelete: true
-        });
-        channel.assertQueue(name, {
+        behaviour.logger.info("Creating delayed queue/exchange pair:", name);
+        setupTasks.push(
+          (done) => channel.assertExchange(name, "fanout", {durable: true, autoDelete: true}, done)
+        );
+        const queueArgs = {
           durable: true,
           autoDelete: true,
           arguments: {
             "x-dead-letter-exchange": behaviour.exchange,
             "x-message-ttl": delay
           }
-        });
-        channel.bindQueue(name, name, "#", {});
+        };
+        setupTasks.push((done) => channel.assertQueue(name, queueArgs, done));
+        setupTasks.push((done) => channel.bindQueue(name, name, "#", {}, done));
         delayedAssets[name] = true;
       }
       const encodedMsg = transform.encode(message, meta);
-      channel.publish(name, routingKey, encodedMsg.buffer, encodedMsg.props, cb);
-      if (!behaviour.confirm) setImmediate(cb);
+      async.series(setupTasks, (err) => {
+        if (err) return cb(err);
+        channel.publish(name, routingKey, encodedMsg.buffer, encodedMsg.props, cb);
+        if (!behaviour.confirm) setImmediate(cb);
+      });
     });
   };
 
