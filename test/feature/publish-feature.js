@@ -5,19 +5,17 @@ const assert = require("assert");
 const async = require("async");
 
 Feature("Publish", () => {
-
-   Scenario("No confirm", () => {
+  Scenario("No confirm", () => {
     let broker;
     after((done) => utils.shutdown(broker, done));
 
     When("We have a connection with confirm=false", () => {
-      broker = utils.init({confirm: false});
+      broker = utils.init({ confirm: false });
     });
 
     Then("The callback should be invoked when we publish a message", (cb) => {
       broker.publish("testRoutingKey", "Hello hi", cb);
     });
-
   });
 
   Scenario("Confirmed publish", () => {
@@ -25,13 +23,12 @@ Feature("Publish", () => {
     after((done) => utils.shutdown(broker, done));
 
     When("We have a connection with confirm=true", () => {
-      broker = utils.init({confirm: true});
+      broker = utils.init({ confirm: true });
     });
 
     Then("The callback should be invoked when we publish a message", (cb) => {
       broker.publish("testRoutingKey", "Hello hi", cb);
     });
-
   });
 
   Scenario("2.5 second delay", () => {
@@ -39,10 +36,15 @@ Feature("Publish", () => {
     let received = null;
     const delay = 2500;
     after((done) => utils.shutdown(broker, done));
-    before((done) => async.parallel([
-      (cb) => utils.deleteRabbitQueue("e1-exp-amqp-delayed-" + delay, cb),
-      (cb) => utils.deleteRabbitExchange("e1-exp-amqp-delayed" + delay, cb)
-    ], done));
+    before((done) =>
+      async.parallel(
+        [
+          (cb) => utils.deleteRabbitQueue(`e1-exp-amqp-delayed-${delay}`, cb),
+          (cb) => utils.deleteRabbitExchange(`e1-exp-amqp-delayed${delay}`, cb),
+        ],
+        done
+      )
+    );
 
     When("We have a connection", () => {
       broker = utils.init();
