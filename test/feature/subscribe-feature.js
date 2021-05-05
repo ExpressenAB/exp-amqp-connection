@@ -7,7 +7,11 @@ Feature("Subscribe", () => {
   const pubTests = [
     { type: "buffer", data: new Buffer("Hello"), result: "Hello" },
     { type: "string", data: "Hello", result: "Hello" },
-    { type: "object", data: { greeting: "Hello" }, result: { greeting: "Hello" } }
+    {
+      type: "object",
+      data: { greeting: "Hello" },
+      result: { greeting: "Hello" },
+    },
   ];
 
   pubTests.forEach((test) => {
@@ -89,7 +93,9 @@ Feature("Subscribe", () => {
           channel.publish(
             utils.defaultBehaviour.exchange,
             "rk1",
-            new Buffer("Hej knekt"), { contentType: "application/json" });
+            new Buffer("Hej knekt"),
+            { contentType: "application/json" }
+          );
           done();
         });
       });
@@ -103,7 +109,6 @@ Feature("Subscribe", () => {
     Then("It should be delivered once", (done) => {
       utils.waitForTruthy(() => nMessages === 1, done);
     });
-
   });
 
   Scenario("Multiple subscriptions", () => {
@@ -178,9 +183,12 @@ Feature("Subscribe", () => {
     let broker;
     after((done) => utils.shutdown(broker, done));
 
-    When("We have a connection with acknowledgement enabled and prefetch 3", () => {
-      broker = utils.init({ ack: true, prefetch: 3, configKey: "3prefetch" });
-    });
+    When(
+      "We have a connection with acknowledgement enabled and prefetch 3",
+      () => {
+        broker = utils.init({ ack: true, prefetch: 3, configKey: "3prefetch" });
+      }
+    );
     And("We create a subscription", (done) => {
       broker.on("subscribed", () => done());
       broker.subscribeTmp("testAckRoutingKey", (msg, meta, ack) => {
@@ -205,7 +213,6 @@ Feature("Subscribe", () => {
       utils.waitForTruthy(() => received.length === 2, done);
       received.forEach((r) => r.ack.ack());
     });
-
   });
 
   Scenario("Cancelled sub", () => {
@@ -255,7 +262,7 @@ Feature("Subscribe", () => {
       utils.waitForTruthy(() => error, done);
     });
     Then("An error 320 should be raised", () => {
-      assert(error != null);
+      assert(error !== null);
     });
   });
 });
