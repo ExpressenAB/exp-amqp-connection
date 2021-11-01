@@ -25,3 +25,5 @@ node_modules
 coverage
 .eslintcache
 .DS_Store
+
+package-lock.json

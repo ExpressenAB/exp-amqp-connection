@@ -2,7 +2,6 @@
 
 const utils = require("../testUtils");
 const assert = require("assert");
-const async = require("async");
 
 Feature("Publish", () => {
   Scenario("No confirm", () => {
@@ -36,15 +35,12 @@ Feature("Publish", () => {
     let received = null;
     const delay = 2500;
     after((done) => utils.shutdown(broker, done));
-    before((done) =>
-      async.parallel(
-        [
-          (cb) => utils.deleteRabbitQueue(`e1-exp-amqp-delayed-${delay}`, cb),
-          (cb) => utils.deleteRabbitExchange(`e1-exp-amqp-delayed${delay}`, cb),
-        ],
-        done
-      )
-    );
+    before(() => {
+      return Promise.all([
+        utils.deleteRabbitQueue(`e1-exp-amqp-delayed-${delay}`),
+        utils.deleteRabbitExchange(`e1-exp-amqp-delayed-${delay}`),
+      ]);
+    });
 
     When("We have a connection", () => {
       broker = utils.init();

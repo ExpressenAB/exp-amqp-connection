@@ -3,9 +3,7 @@
 const utils = require("../testUtils");
 const assert = require("chai").assert;
 
-
 Feature("Connect", () => {
-
   Scenario("Ok connection", () => {
     let broker, eventReceived;
     after((done) => utils.shutdown(broker, done));

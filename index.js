@@ -34,7 +34,7 @@ function init(behaviour) {
   behaviour = Object.assign({}, defaultBehaviour, behaviour);
 
   // get connnection and add event listeners if it's brand new.
-  const doBootstrap = function(callback) {
+  const doBootstrap = function doBootstrap(callback) {
     bootstrap(behaviour, (bootstrapErr, bootstrapRes) => {
       if (bootstrapErr) amqpEvents.emit("error", bootstrapErr);
       if (bootstrapRes && bootstrapRes.virgin) {
@@ -55,7 +55,7 @@ function init(behaviour) {
     });
   };
 
-  const doSubscribe = function(routingKeyOrKeys, queue, handler, attempt) {
+  const doSubscribe = function doSubscribe(routingKeyOrKeys, queue, handler, attempt) {
     doBootstrap((bootstrapErr, bootstrapRes) => {
       if (bootstrapErr) return; // Ok to ignore, emitted as error in doBootstrap()
       const routingKeys = Array.isArray(routingKeyOrKeys) ? routingKeyOrKeys : [routingKeyOrKeys];
@@ -71,7 +71,7 @@ function init(behaviour) {
       subChannel.assertExchange(behaviour.exchange, "topic");
       subChannel.assertQueue(queueName, queueOpts);
       routingKeys.forEach((key) => subChannel.bindQueue(queueName, behaviour.exchange, key, {}));
-      const amqpHandler = function(message) {
+      const amqpHandler = function (message) {
         if (!message) {
           return amqpEvents.emit("error", "Subscription cancelled");
         }
@@ -97,11 +97,11 @@ function init(behaviour) {
     });
   };
 
-  api.subscribeTmp = function(routingKeyOrKeys, handler) {
+  api.subscribeTmp = function subscribeTmp(routingKeyOrKeys, handler) {
     api.subscribe(routingKeyOrKeys, undefined, handler);
   };
 
-  api.subscribe = function(routingKeyOrKeys, queue, handler) {
+  api.subscribe = function subscribe(routingKeyOrKeys, queue, handler) {
     let resubTimer;
     let attempt = 1;
     const resubscribeOnError = (err) => {
@@ -119,7 +119,7 @@ function init(behaviour) {
     amqpEvents.on("error", resubscribeOnError);
   };
 
-  api.publish = function(routingKey, message, meta, cb) {
+  api.publish = function publish(routingKey, message, meta, cb) {
     if (typeof meta === "function") cb = meta;
     cb = cb || (() => {});
     doBootstrap((bootstrapErr, bootstrapRes) => {
@@ -133,9 +133,9 @@ function init(behaviour) {
   };
 
   let delayedAssets = {};
-  api.delayedPublish = function(routingKey, message, delay, meta, cb) {
+  api.delayedPublish = function delayedPublish(routingKey, message, delay, meta, cb) {
     if (typeof meta === "function") cb = meta;
-    cb = cb || function() {};
+    cb = cb || (() => {});
     doBootstrap((bootstrapErr, bootstrapRes) => {
       if (bootstrapErr) return cb(bootstrapErr);
       if (bootstrapRes.virgin) delayedAssets = {};
@@ -168,7 +168,7 @@ function init(behaviour) {
     });
   };
 
-  api.deleteQueue = function(queue, cb) {
+  api.deleteQueue = function deleteQueue(queue, cb) {
     cb = cb || (() => {});
     doBootstrap((err, res) => {
       if (err) return cb(err);
@@ -176,12 +176,10 @@ function init(behaviour) {
     });
   };
 
-  api.shutdown = function(cb) {
+  api.shutdown = function shutdown(cb) {
     cb = cb || (() => {});
     doBootstrap((err, res) => {
-      if (err) {
-        return cb(err);
-      }
+      if (err) return cb(err);
       res.connection.close(cb);
     });
   };

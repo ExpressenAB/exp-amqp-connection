@@ -5,7 +5,7 @@ const assert = require("assert");
 
 Feature("Subscribe", () => {
   const pubTests = [
-    { type: "buffer", data: new Buffer("Hello"), result: "Hello" },
+    { type: "buffer", data: Buffer.from("Hello"), result: "Hello" },
     { type: "string", data: "Hello", result: "Hello" },
     {
       type: "object",
@@ -42,7 +42,7 @@ Feature("Subscribe", () => {
     const messages = [];
     let broker;
 
-    before((done) => utils.deleteRabbitQueue("testMultipleRoutingKeys", done));
+    before(() => utils.deleteRabbitQueue("testMultipleRoutingKeys"));
     after((done) => utils.shutdown(broker, done));
     const handler = (message) => {
       messages.push(message.testData);
@@ -93,7 +93,7 @@ Feature("Subscribe", () => {
           channel.publish(
             utils.defaultBehaviour.exchange,
             "rk1",
-            new Buffer("Hej knekt"),
+            Buffer.from("Hej knekt"),
             { contentType: "application/json" }
           );
           done();
@@ -233,10 +233,8 @@ Feature("Subscribe", () => {
       broker.subscribe("testRoutingKey", "testQ2", () => {});
     });
     And("We delete the queue", (done) => {
-      utils.deleteRabbitQueue("testQ2", (err) => {
-        if (err) return done(err);
-        utils.waitForTruthy(() => error, done);
-      });
+      utils.deleteRabbitQueue("testQ2");
+      utils.waitForTruthy(() => error, done);
     });
     Then("An error should be raised", () => {
       assert.equal("Subscription cancelled", error);

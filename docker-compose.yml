@@ -1,13 +1,7 @@
-app:
-  build: .
-  entrypoint: /bin/bash -c
-  environment:
-    - RABBIT_URL=amqp://guest:guest@linked-rabbitmq
-  links:
-    - rabbitmq:linked-rabbitmq
-rabbitmq:
-  image: rabbitmq:3.5-management
-  ports:
-    - "5672:5672"
-    - "15672:15672"
-
+version: "3"
+services:
+  rabbitmq:
+    image: rabbitmq:3.5-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"

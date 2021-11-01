@@ -2,86 +2,72 @@
 
 // eslint-ignore:  no-console
 
-const request = require("request");
-const URL = require("url").URL;
-const assert = require("assert");
+const got = require("got");
 const impl = require("../");
 
-const rabbitUrl = process.env.RABBIT_URL || "amqp://guest:guest@localhost";
+const rabbitUrl = process.env.RABBIT_URL;
 const defaultBehaviour = { exchange: "e1", confirm: true, url: rabbitUrl, resubscribeOnError: false };
 
+const request = got.extend({
+  prefixUrl: process.env.RABBIT_MGT_URL,
+  retry: 0,
+  responseType: "json",
+  timeout: {
+    socket: 5000,
+  },
+});
+
 function init(customBehaviour) {
-  const broker = impl(Object.assign({}, defaultBehaviour, customBehaviour));
+  const broker = impl({...defaultBehaviour, ...customBehaviour});
   broker.on("error", () => {});
   return broker;
 }
 
-function getRabbitConnections(callback) {
-  request.get(
-    `${adminUrl()}/api/connections`, (err, resp, connections) => {
-      if (err) return callback(err);
-      callback(null, JSON.parse(connections));
-    });
+async function getRabbitConnections() {
+  const resp = await request.get("api/connections");
+  return resp.body;
 }
 
-function killRabbitConnections() {
-  getRabbitConnections((err, connections) => {
-    if (err) return assert(false, err);
-    connections.forEach(killRabbitConnection);
-  });
+async function killRabbitConnections() {
+  const connections = await getRabbitConnections();
+  return Promise.all(connections.map(killRabbitConnection));
 }
 
 function killRabbitConnection(conn) {
-  deleteResource(`${adminUrl()}/api/connections/${conn.name}`, assert.ifError);
+  return deleteResource(`api/connections/${conn.name}`);
 }
 
-function deleteRabbitExchange(exchange, done) {
-  deleteResource(`${adminUrl()}/api/exchange/%2F/${exchange}`, done);
+function deleteRabbitExchange(exchange) {
+  return deleteResource(`api/exchange/%2F/${exchange}`);
 }
 
-function deleteRabbitQueue(queue, done) {
-  deleteResource(`${adminUrl()}/api/queues/%2F/${queue}`, done);
+function deleteRabbitQueue(queue) {
+  deleteResource(`api/queues/%2F/${queue}`);
 }
 
-function deleteResource(url, done) {
-  request.del(url, (err, resp, body) => {
-    if (err) return done(err);
-    if (resp.statusCode === 404) return done();
-    if (resp.statusCode >= 300) return done(`${resp.statusCode} ${body}`);
-    done();
-  });
-}
-
-function adminUrl() {
-  const url = new URL(rabbitUrl);
-  url.port = 15672;
-  return url.href.replace("amqp://", "http://");
+async function deleteResource(url) {
+  const resp = await request.delete(url, {throwHttpErrors: false});
+  if (resp.statusCode === 404) return;
+  if (resp.statusCode >= 500) throw new Error(resp.statusCode);
 }
 
 function shutdown(broker, done) {
-  if (broker) {
-    try {
-      broker.removeAllListeners("error");
-      broker.on("error", () => {});
-      broker.shutdown((err) => {
-        // eslint-disable-next-line no-console
-        if (err) console.log("Ignoring shutdown error", err.message);
-        done();
-      });
-    } catch (err) {
+  if (!broker?.shutdown) return done();
+
+  broker.removeAllListeners("error");
+  broker.on("error", () => {});
+  broker.shutdown((err) => {
+    if (err) {
       // eslint-disable-next-line no-console
       console.log("Ignoring shutdown error", err.message);
-      done();
     }
-  } else {
-    setImmediate(done);
-  }
+    done();
+  });
 }
 
 function waitForTruthy(fun, cb) {
   return fun() ? cb() : setTimeout(() => waitForTruthy(fun, cb), 5);
 }
-
 
 module.exports = {
   waitForTruthy,
