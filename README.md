@@ -1,6 +1,6 @@
 # Simple amqp library
 
-[![Build Status](https://travis-ci.org/ExpressenAB/exp-amqp-connection.svg?branch=master)](https://travis-ci.org/ExpressenAB/exp-amqp-connection)
+[![Run tests](https://github.com/ExpressenAB/exp-amqp-connection/actions/workflows/run-tests.yml/badge.svg?branch=master)](https://github.com/ExpressenAB/exp-amqp-connection/actions/workflows/run-tests.yml)
 
 ## Purpose and features
 
@@ -75,7 +75,7 @@ Delayed publish using dead-letter-hack: https://www.cloudamqp.com/docs/delayed-m
 
 #### subscribe(routingKey, queue, handler)
 
-Subscribe using named durable queue. 
+Subscribe using named durable queue.
 If you need to wait for the subscription to start, use `.on("subscribed", (sub) => ...)`
 
 #### subscribeTmp(routingKey, handler)

@@ -1,7 +1,7 @@
+/* eslint-disable no-loop-func */
 "use strict";
 
 const utils = require("../testUtils");
-const async = require("async");
 const assert = require("assert");
 
 Feature("Bootstrapping", () => {
@@ -13,20 +13,19 @@ Feature("Bootstrapping", () => {
     When("Connect to the borker", () => {
       broker = utils.init();
     });
-    And("We use it a ton of times", (done) => {
-      async.forEachSeries(new Array(100), (_, cb) => broker.publish("bogus", "bogus", cb), done);
+    And("We use it a ton of times", async () => {
+      let count = 100;
+      while (count--) {
+        await new Promise((resolve) => broker.publish("bogus", "bogus", resolve));
+      }
     });
-    Then("Only one actual connection should be created", (done) => {
-      utils.getRabbitConnections((err, conns) => {
-        if (err) return done(err);
-        assert.equal(1, conns.length);
-        done();
-      });
+    Then("Only one actual connection should be created", async () => {
+      const conns = await utils.getRabbitConnections();
+      assert.equal(1, conns.length);
     });
   });
 
   Scenario("Same config key for different conf", () => {
-
     Given("A rabbit connection initialized with key 'A1'", () => {
       const orgBroker = utils.init({ configKey: "A1", exchange: "hello" });
       orgBroker.publish("1", "OK");

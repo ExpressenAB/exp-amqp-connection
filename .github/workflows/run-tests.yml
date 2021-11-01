@@ -1,0 +1,37 @@
+name: Run tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x]
+    services:
+      rabbitmq:
+        image: rabbitmq:3.5-management
+        ports:
+        - 5672/tcp
+        - 15672/tcp
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm i
+
+      - name: Run Tests
+        run: npm test
+        env:
+          RABBIT_URL: amqp://guest:guest@localhost:${{ job.services.rabbitmq.ports[5672] }}
+          RABBIT_MGT_URL: http://guest:guest@localhost:${{ job.services.rabbitmq.ports[15672] }}
