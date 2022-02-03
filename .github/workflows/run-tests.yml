@@ -16,7 +16,7 @@ jobs:
         node-version: [14.x, 16.x]
     services:
       rabbitmq:
-        image: rabbitmq:3.5-management
+        image: rabbitmq:3.8-management-alpine
         ports:
         - 5672/tcp
         - 15672/tcp
