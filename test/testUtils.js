@@ -28,8 +28,9 @@ async function getRabbitConnections() {
   return resp.body;
 }
 
-async function killRabbitConnections() {
-  const connections = await getRabbitConnections();
+async function killRabbitConnections(waitForConnections = false) {
+  let connections = await getRabbitConnections();
+  while (waitForConnections && connections.length === 0) connections = await getRabbitConnections();
   return Promise.all(connections.map(killRabbitConnection));
 }
 

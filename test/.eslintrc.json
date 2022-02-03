@@ -13,6 +13,7 @@
     "And": true,
     "Given": true,
     "before": true,
-    "after": true
+    "after": true,
+    "afterEachScenario": true
   }
 }
