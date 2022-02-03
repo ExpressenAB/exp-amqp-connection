@@ -6,8 +6,11 @@ const assert = require("assert");
 
 Feature("Bootstrapping", () => {
   let broker;
-  before(utils.killRabbitConnections);
-  after((done) => utils.shutdown(broker, done));
+
+  afterEachScenario((done) => {
+    if (broker) return utils.shutdown(broker, done);
+    else done();
+  });
 
   Scenario("Reuse connection", () => {
     When("Connect to the borker", () => {
@@ -16,11 +19,16 @@ Feature("Bootstrapping", () => {
     And("We use it a ton of times", async () => {
       let count = 100;
       while (count--) {
-        await new Promise((resolve) => broker.publish("bogus", "bogus", resolve));
+        await new Promise((resolve, reject) => broker.publish("bogus", "bogus", (err) => {
+          if (err) return reject(err);
+          return resolve();
+        }));
       }
     });
+
     Then("Only one actual connection should be created", async () => {
-      const conns = await utils.getRabbitConnections();
+      let conns = await utils.getRabbitConnections();
+      while (conns.length === 0) conns = await utils.getRabbitConnections();
       assert.equal(1, conns.length);
     });
   });

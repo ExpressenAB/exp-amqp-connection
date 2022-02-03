@@ -14,11 +14,16 @@ Feature("Subscribe", () => {
     },
   ];
 
+  let broker;
+
+  afterEachScenario((done) => {
+    if (broker) return utils.shutdown(broker, done);
+    else done();
+  });
+
   pubTests.forEach((test) => {
     Scenario(`Pubsub with ${test.type} message`, () => {
-      let broker;
       let received;
-      after((done) => utils.shutdown(broker, done));
       And("We have a connection", () => {
         broker = utils.init();
       });
@@ -40,10 +45,9 @@ Feature("Subscribe", () => {
 
   Scenario("Multiple routing keys", () => {
     const messages = [];
-    let broker;
 
     before(() => utils.deleteRabbitQueue("testMultipleRoutingKeys"));
-    after((done) => utils.shutdown(broker, done));
+
     const handler = (message) => {
       messages.push(message.testData);
     };
@@ -72,8 +76,6 @@ Feature("Subscribe", () => {
 
   Scenario("Unparsable message", () => {
     let nMessages = 0;
-    let broker;
-    after((done) => utils.shutdown(broker, done));
     const handler = () => {
       nMessages++;
     };
@@ -117,12 +119,10 @@ Feature("Subscribe", () => {
     const q1 = `msub1-${ts}`,
       q2 = `msub2-${ts}`,
       q3 = `msub3-${ts}`;
-    let broker;
+
     const handler = (message) => {
       messages.push(message);
     };
-
-    after((done) => utils.shutdown(broker, done));
 
     When("We have a connection", () => {
       broker = utils.init();
@@ -158,8 +158,6 @@ Feature("Subscribe", () => {
 
   Scenario("Pubsub using tmp queue", () => {
     let received;
-    let broker;
-    after((done) => utils.shutdown(broker, done));
     When("We have a connection", () => {
       broker = utils.init();
     });
@@ -180,8 +178,6 @@ Feature("Subscribe", () => {
 
   Scenario("Acknowledgement", () => {
     const received = [];
-    let broker;
-    after((done) => utils.shutdown(broker, done));
 
     When(
       "We have a connection with acknowledgement enabled and prefetch 3",
@@ -216,9 +212,7 @@ Feature("Subscribe", () => {
   });
 
   Scenario("Cancelled sub", () => {
-    let broker;
     let error;
-    after((done) => utils.shutdown(broker, done));
     When("We have a connection", () => {
       broker = utils.init();
     });
@@ -242,24 +236,26 @@ Feature("Subscribe", () => {
   });
 
   Scenario("Connection removed", () => {
-    let broker;
-    let error;
+    let waitForError;
 
-    after((done) => utils.shutdown(broker, done));
+    before(utils.killRabbitConnections);
+
     When("We have a connection", (done) => {
       broker = utils.init();
-      broker.on("error", (err) => {
-        error = err;
+      waitForError = new Promise((resolve) => {
+        broker.on("error", (err) => {
+          resolve(err);
+        });
       });
       // Just do something so the connection is bootstrapped.
       broker.publish("garbage", "garbage", done);
     });
 
-    And("We delete the connection", (done) => {
-      utils.killRabbitConnections();
-      utils.waitForTruthy(() => error, done);
+    And("We delete the connection", async () => {
+      await utils.killRabbitConnections(true);
     });
-    Then("An error 320 should be raised", () => {
+    Then("An error 320 should be raised", async () => {
+      const error = await waitForError;
       assert(error !== null);
     });
   });

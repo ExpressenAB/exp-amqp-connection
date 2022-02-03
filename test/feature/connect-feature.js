@@ -44,8 +44,13 @@ Feature("Connect", () => {
     When("We have a connection", () => {
       broker = utils.init();
     });
-    And("And we kill all rabbit connections", utils.killRabbitConnections);
+
+    And("And we kill all rabbit connections", async () => {
+      await utils.killRabbitConnections(true);
+    });
+
     And("We sleep a while", (done) => setTimeout(done, 500));
+
     Then("We can use the broker again", (done) => {
       broker.publish("bogus", "Hello", done);
     });
