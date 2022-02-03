@@ -22,9 +22,9 @@ Feature("Negative acknowledgement", () => {
       broker.on("subscribed", () => done());
       broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
         received.push({
-          msg: msg,
-          meta: meta,
-          ack: ack
+          msg,
+          meta,
+          ack,
         });
 
         const isNackMessage = msg.msgId === 0;
@@ -42,7 +42,7 @@ Feature("Negative acknowledgement", () => {
     });
     When("We publish 3 messages", () => {
       for (let i = 0; i < 3; i++) {
-        broker.publish("testNackRoutingKey", { "msgId": i });
+        broker.publish("testNackRoutingKey", { msgId: i });
       }
     });
     Then("There should be 4 received messages", (done) => {
@@ -70,9 +70,9 @@ Feature("Negative acknowledgement", () => {
       broker.on("subscribed", () => done());
       broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
         received.push({
-          msg: msg,
-          meta: meta,
-          ack: ack
+          msg,
+          meta,
+          ack,
         });
 
         const isNackMessage = msg.msgId === 0;
@@ -90,7 +90,7 @@ Feature("Negative acknowledgement", () => {
     });
     When("We publish 3 messages", () => {
       for (let i = 0; i < 3; i++) {
-        broker.publish("testNackRoutingKey", { "msgId": i });
+        broker.publish("testNackRoutingKey", { msgId: i });
       }
     });
     Then("There should be 3 received messages", (done) => {

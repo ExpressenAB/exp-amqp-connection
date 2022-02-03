@@ -56,21 +56,21 @@ Feature("Subscribe", () => {
     });
     And("We create a subscription for routing key 1 and 2", (done) => {
       broker.once("subscribed", () => done());
-      broker.subscribe(["rk1", "rk2"], "testMultipleRoutingKeys", handler);
+      broker.subscribe([ "rk1", "rk2" ], "testMultipleRoutingKeys", handler);
     });
     When("We publish a message with routing key 1", (done) => {
       broker.publish("rk1", { testData: "m1" });
       utils.waitForTruthy(() => messages.length > 0, done);
     });
     Then("It should be delivered once", () => {
-      assert.deepEqual(["m1"], messages);
+      assert.deepEqual([ "m1" ], messages);
     });
     When("We publish a message with routing key 2", (done) => {
       broker.publish("rk2", { testData: "m2" });
       utils.waitForTruthy(() => messages.length > 1, done);
     });
     Then("It should be delivered once", () => {
-      assert.deepEqual(messages, ["m1", "m2"]);
+      assert.deepEqual(messages, [ "m1", "m2" ]);
     });
   });
 
@@ -129,15 +129,15 @@ Feature("Subscribe", () => {
     });
     And("We create a subscription with routing key 1", (done) => {
       broker.on("subscribed", (sub) => sub.queue === q1 && done());
-      broker.subscribe(["k1"], q1, handler);
+      broker.subscribe([ "k1" ], q1, handler);
     });
     And("We create another subscription qith routing key 1", (done) => {
       broker.on("subscribed", (sub) => sub.queue === q2 && done());
-      broker.subscribe(["k1"], q2, handler);
+      broker.subscribe([ "k1" ], q2, handler);
     });
     And("We create a subscription with routing key 2", (done) => {
       broker.on("subscribed", (sub) => sub.queue === q3 && done());
-      broker.subscribe(["k2"], q3, handler);
+      broker.subscribe([ "k2" ], q3, handler);
     });
 
     When("We publish a message with key 1", (done) => {
@@ -145,14 +145,14 @@ Feature("Subscribe", () => {
       utils.waitForTruthy(() => messages.length > 1, done);
     });
     Then("It should be delivered twice", () => {
-      assert.deepEqual(["m1", "m1"], messages);
+      assert.deepEqual([ "m1", "m1" ], messages);
     });
     When("We publish a message with routing key 2", (done) => {
       broker.publish("k2", "m2");
       utils.waitForTruthy(() => messages.length > 2, done);
     });
     Then("It should be delivered once", () => {
-      assert.deepEqual(messages, ["m1", "m1", "m2"]);
+      assert.deepEqual(messages, [ "m1", "m1", "m2" ]);
     });
   });
 
@@ -188,7 +188,7 @@ Feature("Subscribe", () => {
     And("We create a subscription", (done) => {
       broker.on("subscribed", () => done());
       broker.subscribeTmp("testAckRoutingKey", (msg, meta, ack) => {
-        received.push({ msg: msg, ack: ack });
+        received.push({ msg, ack });
       });
     });
     And("We publish five messages messages", () => {

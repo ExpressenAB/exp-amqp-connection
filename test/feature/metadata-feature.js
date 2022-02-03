@@ -10,10 +10,10 @@ Feature("Metadata", () => {
   const correlationId = "123XCY";
 
   const msgContent = {
-    "msgId": 1
+    msgId: 1,
   };
   const msgMeta = {
-    correlationId: correlationId
+    correlationId,
   };
 
   after((done) => utils.shutdown(broker, done));
@@ -29,7 +29,7 @@ Feature("Metadata", () => {
     broker.subscribeTmp("testMetaDataRoutingKey", (msg, meta, ack) => {
       receivedMessage = {
         content: msg,
-        meta: meta
+        meta,
       };
       ack.ack();
     });

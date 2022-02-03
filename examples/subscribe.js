@@ -6,7 +6,7 @@ const amqpBehaviour = {
   url: "amqp://localhost",
   exchange: "my-excchange",
   ack: "true",
-  prefetch: 10
+  prefetch: 10,
 };
 
 const broker = init(amqpBehaviour);
@@ -27,6 +27,7 @@ broker.on("subscribed", (subscription) => {
 // restarting the process.
 broker.on("error", (error) => {
   console.error("Amqp error", error, ", aborting process.");
+  // eslint-disable-next-line node/no-process-exit
   process.exit(1);
 });
 

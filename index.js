@@ -12,7 +12,7 @@ const dummyLogger = {
   // eslint-disable-next-line no-console
   info: console.log,
   // eslint-disable-next-line no-console
-  error: console.log
+  error: console.log,
 };
 
 const defaultBehaviour = {
@@ -24,7 +24,7 @@ const defaultBehaviour = {
   queueArguments: {},
   prefetch: 20,
   logger: dummyLogger,
-  configKey: "default"
+  configKey: "default",
 };
 
 function init(behaviour) {
@@ -58,14 +58,14 @@ function init(behaviour) {
   const doSubscribe = function doSubscribe(routingKeyOrKeys, queue, handler, attempt) {
     doBootstrap((bootstrapErr, bootstrapRes) => {
       if (bootstrapErr) return; // Ok to ignore, emitted as error in doBootstrap()
-      const routingKeys = Array.isArray(routingKeyOrKeys) ? routingKeyOrKeys : [routingKeyOrKeys];
+      const routingKeys = Array.isArray(routingKeyOrKeys) ? routingKeyOrKeys : [ routingKeyOrKeys ];
       const subChannel = bootstrapRes.subChannel;
       subChannel.prefetch(behaviour.prefetch);
       const queueOpts = {
         durable: !!queue,
         autoDelete: !queue,
         exclusive: !queue,
-        arguments: Object.assign(!queue ? { "x-expires": TMP_Q_TTL } : {}, behaviour.queueArguments)
+        arguments: Object.assign(!queue ? { "x-expires": TMP_Q_TTL } : {}, behaviour.queueArguments),
       };
       const queueName = queue ? queue : `${getProductName()}-${getRandomStr()}`;
       subChannel.assertExchange(behaviour.exchange, "topic");
@@ -145,15 +145,15 @@ function init(behaviour) {
       if (!delayedAssets[name]) {
         behaviour.logger.info("Creating delayed queue/exchange pair:", name);
         setupTasks.push(
-          (done) => channel.assertExchange(name, "fanout", {durable: true, autoDelete: true}, done)
+          (done) => channel.assertExchange(name, "fanout", { durable: true, autoDelete: true }, done)
         );
         const queueArgs = {
           durable: true,
           autoDelete: true,
           arguments: {
             "x-dead-letter-exchange": behaviour.exchange,
-            "x-message-ttl": delay
-          }
+            "x-message-ttl": delay,
+          },
         };
         setupTasks.push((done) => channel.assertQueue(name, queueArgs, done));
         setupTasks.push((done) => channel.bindQueue(name, name, "#", {}, done));

@@ -18,7 +18,7 @@ const request = got.extend({
 });
 
 function init(customBehaviour) {
-  const broker = impl({...defaultBehaviour, ...customBehaviour});
+  const broker = impl({ ...defaultBehaviour, ...customBehaviour });
   broker.on("error", () => {});
   return broker;
 }
@@ -47,7 +47,7 @@ function deleteRabbitQueue(queue) {
 }
 
 async function deleteResource(url) {
-  const resp = await request.delete(url, {throwHttpErrors: false});
+  const resp = await request.delete(url, { throwHttpErrors: false });
   if (resp.statusCode === 404) return;
   if (resp.statusCode >= 500) throw new Error(resp.statusCode);
 }
@@ -79,5 +79,5 @@ module.exports = {
   rabbitUrl,
   init,
   getRabbitConnections,
-  defaultBehaviour
+  defaultBehaviour,
 };
