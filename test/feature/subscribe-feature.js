@@ -236,24 +236,26 @@ Feature("Subscribe", () => {
   });
 
   Scenario("Connection removed", () => {
-    let error = null;
+    let waitForError;
 
     before(utils.killRabbitConnections);
 
     When("We have a connection", (done) => {
       broker = utils.init();
-      broker.on("error", (err) => {
-        error = err;
+      waitForError = new Promise((resolve) => {
+        broker.on("error", (err) => {
+          resolve(err);
+        });
       });
       // Just do something so the connection is bootstrapped.
       broker.publish("garbage", "garbage", done);
     });
 
-    And("We delete the connection", (done) => {
-      utils.waitForTruthy(() => error, done);
-      utils.killRabbitConnections(true);
+    And("We delete the connection", async () => {
+      await utils.killRabbitConnections(true);
     });
-    Then("An error 320 should be raised", () => {
+    Then("An error 320 should be raised", async () => {
+      const error = await waitForError;
       assert(error !== null);
     });
   });

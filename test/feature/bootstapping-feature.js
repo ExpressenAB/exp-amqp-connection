@@ -6,8 +6,11 @@ const assert = require("assert");
 
 Feature("Bootstrapping", () => {
   let broker;
-  before(utils.killRabbitConnections);
-  after((done) => utils.shutdown(broker, done));
+
+  afterEachScenario((done) => {
+    if (broker) return utils.shutdown(broker, done);
+    else done();
+  });
 
   Scenario("Reuse connection", () => {
     When("Connect to the borker", () => {
