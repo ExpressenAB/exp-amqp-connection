@@ -8,7 +8,7 @@ const init = require("..");
 const amqpBehaviour = {
   url: "amqp://localhost",
   exchange: "my-excchange",
-  ack: "true"
+  ack: "true",
 };
 
 const broker = init(amqpBehaviour);

@@ -12,7 +12,7 @@ Feature("Transform", () => {
     When("We receive a message without properties", () => {
       const encoded = tested.encode(text);
       const message = {
-        content: encoded.buffer
+        content: encoded.buffer,
       };
       decoded = tested.decode(message);
     });

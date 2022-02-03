@@ -1,19 +1,5 @@
 {
-  "env": {
-    "es6": true
-  },
-  "rules": {
-    "new-cap": 0
-  },
-  "globals": {
-    "Feature": true,
-    "When": true,
-    "Scenario": true,
-    "Then": true,
-    "And": true,
-    "Given": true,
-    "before": true,
-    "after": true,
-    "afterEachScenario": true
-  }
+  "extends": [
+    "eslint-config-exp/test"
+  ]
 }

@@ -5,7 +5,7 @@ const init = require("..");
 const amqpBehaviour = {
   url: "amqp://localhost",
   exchange: "my-exchange",
-  confirm: true // Enables callback as last parameter to the publish functions
+  confirm: true, // Enables callback as last parameter to the publish functions
 };
 
 const broker = init(amqpBehaviour);

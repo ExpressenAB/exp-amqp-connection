@@ -15,7 +15,7 @@ Feature("Multiple connections", () => {
     broker1 = utils.init({
       exchange: "es-first",
       configKey: "first",
-      confirm: true
+      confirm: true,
     });
   });
 
@@ -23,7 +23,7 @@ Feature("Multiple connections", () => {
     broker2 = utils.init({
       exchange: "es-second",
       configKey: "second",
-      confirm: true
+      confirm: true,
     });
   });
 

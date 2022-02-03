@@ -8,7 +8,7 @@ const amqpBehaviour = {
   url: "amqp://localhost",
   exchange: "my-excchange",
   ack: "true",
-  resubscribeOnError: true
+  resubscribeOnError: true,
 };
 
 const broker = init(amqpBehaviour);

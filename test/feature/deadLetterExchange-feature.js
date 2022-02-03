@@ -18,8 +18,8 @@ Feature("Dead letter exchange", () => {
       ack: true,
       configKey: "deadLetterTest",
       queueArguments: {
-        "x-dead-letter-exchange": "DLX"
-      }
+        "x-dead-letter-exchange": "DLX",
+      },
     });
   });
   And("We have a connection to said dead letter exchange", () => {
@@ -33,9 +33,9 @@ Feature("Dead letter exchange", () => {
     broker.once("subscribed", () => done());
     broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
       received.push({
-        msg: msg,
-        meta: meta,
-        ack: ack
+        msg,
+        meta,
+        ack,
       });
 
       const isNackMessage = msg.msgId === 0;
@@ -55,16 +55,16 @@ Feature("Dead letter exchange", () => {
     deadLetterBroker.on("subscribed", () => done());
     deadLetterBroker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
       deadLetterReceived.push({
-        msg: msg,
-        meta: meta,
-        ack: ack
+        msg,
+        meta,
+        ack,
       });
     });
   });
   When("We publish 3 messages", () => {
 
     for (let i = 0; i < 3; i++) {
-      broker.publish("testNackRoutingKey", { "msgId": i });
+      broker.publish("testNackRoutingKey", { msgId: i });
     }
   });
   Then("There should be 3 received messages", (done) => {
