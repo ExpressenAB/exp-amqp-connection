@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm i
 
+      - name: Sleep until rabbit is ready
+        run: sleep 5
+
       - name: Run Tests
         run: npm test
         env:
