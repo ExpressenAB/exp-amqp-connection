@@ -119,7 +119,7 @@ Feature("Subscribe", () => {
     const q1 = `msub1-${ts}`,
       q2 = `msub2-${ts}`,
       q3 = `msub3-${ts}`;
-    //let broker;
+
     const handler = (message) => {
       messages.push(message);
     };
